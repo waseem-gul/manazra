@@ -1,0 +1,32 @@
+{
+    "name": "manazra",
+    "version": "1.0.0",
+    "description": "An opensource tool for AI model conversations and discussions",
+    "main": "index.js",
+    "scripts": {
+        "dev": "concurrently \"npm run server\" \"npm run client\"",
+        "server": "cd backend && npm run dev",
+        "client": "cd frontend && npm run dev",
+        "build": "cd frontend && npm run build",
+        "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+        "docker:build": "docker build -t manazra .",
+        "docker:run": "docker run -p 3000:3000 -p 5000:5000 manazra"
+    },
+    "keywords": [
+        "ai",
+        "llm",
+        "conversation",
+        "openrouter",
+        "chat",
+        "models"
+    ],
+    "author": "Manazra Team",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yourusername/manazra"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}
