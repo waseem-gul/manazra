@@ -21,7 +21,7 @@ const ConversationSetup: React.FC = () => {
         currentConversation,
     } = useConversation();
 
-    const [topic, setTopic] = useState('Life of Hazrat Muhammad (S.A.W)');
+    const [topic, setTopic] = useState('');
     const [responseCount, setResponseCount] = useState(1);
     const [responseType, setResponseType] = useState('normal');
     const [showModelSelector, setShowModelSelector] = useState(false);
