@@ -4,7 +4,7 @@
     "description": "Backend API for Manazra AI conversation tool",
     "main": "server.js",
     "scripts": {
-        "dev": "nodemon server.js",
+        "dev": "NODE_ENV=development nodemon server.js",
         "start": "node server.js"
     },
     "dependencies": {

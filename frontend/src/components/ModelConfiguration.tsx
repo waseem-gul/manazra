@@ -47,25 +47,27 @@ const ModelConfiguration: React.FC<ModelConfigurationProps> = ({ modelId, isOpen
         onClose();
     };
 
-    // Helper function to safely format pricing
-    const formatPrice = (price: any): string => {
+    // Helper function to safely format pricing per 1M tokens
+    const formatPricePer1M = (price: any): string => {
         if (price === null || price === undefined) return '0';
 
+        let numPrice = 0;
         // If it's already a number
         if (typeof price === 'number') {
-            return price.toFixed(6);
-        }
-
-        // If it's a string, try to convert it
-        if (typeof price === 'string') {
-            const numPrice = parseFloat(price);
-            if (!isNaN(numPrice)) {
-                return numPrice.toFixed(6);
+            numPrice = price;
+        } else if (typeof price === 'string') {
+            // If it's a string, try to convert it
+            numPrice = parseFloat(price);
+            if (isNaN(numPrice)) {
+                return '0';
             }
+        } else {
+            return '0';
         }
 
-        // Fallback
-        return '0';
+        // Convert to price per 1M tokens
+        const pricePer1M = numPrice * 1000000;
+        return pricePer1M.toFixed(2);
     };
 
     // Helper function to safely format context length
@@ -170,15 +172,15 @@ const ModelConfiguration: React.FC<ModelConfigurationProps> = ({ modelId, isOpen
                                 {model.pricing && (
                                     <>
                                         <div>
-                                            <span className="text-gray-500">Prompt Cost:</span>
+                                            <span className="text-gray-500">Input Cost:</span>
                                             <span className="ml-2 font-medium">
-                                                ${formatPrice(model.pricing.prompt)}/token
+                                                ${formatPricePer1M(model.pricing.prompt)}/1M tokens
                                             </span>
                                         </div>
                                         <div>
-                                            <span className="text-gray-500">Completion Cost:</span>
+                                            <span className="text-gray-500">Output Cost:</span>
                                             <span className="ml-2 font-medium">
-                                                ${formatPrice(model.pricing.completion)}/token
+                                                ${formatPricePer1M(model.pricing.completion)}/1M tokens
                                             </span>
                                         </div>
                                     </>

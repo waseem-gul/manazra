@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useConversation } from '../contexts/ConversationContext';
-import { MessageSquare, Clock, User, Bot, Plus, Send, Loader2 } from 'lucide-react';
+import { MessageSquare, Clock, User, Bot, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
 
 const ConversationView: React.FC = () => {
-    const { currentConversation, isGenerating, continueConversation } = useConversation();
+    const { currentConversation, isGenerating, continueConversation, clearConversation, streamingResponses } = useConversation();
     const [followupPrompt, setFollowupPrompt] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -18,6 +19,10 @@ const ConversationView: React.FC = () => {
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleBackToSetup = () => {
+        clearConversation();
     };
 
     const formatTimestamp = (timestamp: string) => {
@@ -41,16 +46,26 @@ const ConversationView: React.FC = () => {
             {/* Conversation Header */}
             <div className="card p-6">
                 <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-900">{currentConversation.topic}</h2>
-                        <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                            <div className="flex items-center">
-                                <Clock className="w-4 h-4 mr-1" />
-                                {formatTimestamp(currentConversation.createdAt)}
-                            </div>
-                            <div className="flex items-center">
-                                <Bot className="w-4 h-4 mr-1" />
-                                {currentConversation.models.length} models
+                    <div className="flex items-center space-x-4">
+                        <button
+                            onClick={handleBackToSetup}
+                            className="btn btn-outline btn-sm"
+                            disabled={isGenerating}
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-2" />
+                            Back to Setup
+                        </button>
+                        <div>
+                            <h2 className="text-2xl font-bold text-gray-900">{currentConversation.topic}</h2>
+                            <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                                <div className="flex items-center">
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    {formatTimestamp(currentConversation.createdAt)}
+                                </div>
+                                <div className="flex items-center">
+                                    <Bot className="w-4 h-4 mr-1" />
+                                    {currentConversation.models.length} models
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -114,8 +129,12 @@ const ConversationView: React.FC = () => {
                                                 {formatTimestamp(response.timestamp)}
                                             </span>
                                         </div>
-                                        <div className={`${response.error ? 'text-red-800' : 'text-blue-800'} whitespace-pre-wrap`}>
-                                            {response.response}
+                                        <div className={`${response.error ? 'text-red-800' : 'text-blue-800'} prose prose-sm max-w-none`}>
+                                            {response.error ? (
+                                                <div className="whitespace-pre-wrap">{response.response}</div>
+                                            ) : (
+                                                <ReactMarkdown>{response.response}</ReactMarkdown>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -123,8 +142,50 @@ const ConversationView: React.FC = () => {
                         ))}
                     </AnimatePresence>
 
+                    {/* Streaming Responses */}
+                    <AnimatePresence>
+                        {Object.entries(streamingResponses).map(([modelId, response]) => {
+                            const model = currentConversation.models.find(m => m.id === modelId);
+                            if (!model) return null;
+
+                            return (
+                                <motion.div
+                                    key={`streaming-${modelId}`}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="flex items-start space-x-3"
+                                >
+                                    <div className="bg-blue-100 p-2 rounded-lg">
+                                        <Bot className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="bg-blue-50 rounded-lg p-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="font-medium text-blue-900">
+                                                    {model.name}
+                                                </span>
+                                                <div className="flex items-center space-x-2">
+                                                    <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+                                                    <span className="text-xs text-blue-600">
+                                                        Streaming...
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="text-blue-800 prose prose-sm max-w-none">
+                                                <ReactMarkdown>{response}</ReactMarkdown>
+                                                <span className="inline-block w-2 h-5 bg-blue-600 ml-1 animate-pulse"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </AnimatePresence>
+
                     {/* Loading State */}
-                    {isGenerating && (
+                    {isGenerating && Object.keys(streamingResponses).length === 0 && (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -132,7 +193,7 @@ const ConversationView: React.FC = () => {
                         >
                             <div className="flex items-center space-x-3 text-gray-500">
                                 <Loader2 className="w-6 h-6 animate-spin" />
-                                <span>AI models are thinking...</span>
+                                <span>Starting conversation...</span>
                             </div>
                         </motion.div>
                     )}

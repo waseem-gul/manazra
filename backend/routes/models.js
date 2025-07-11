@@ -39,18 +39,20 @@ router.get('/popular', async (req, res) => {
     
     // Filter for popular models
     const popularModelIds = [
-      'openai/gpt-4',
-      'openai/gpt-3.5-turbo',
-      'anthropic/claude-3-sonnet',
-      'anthropic/claude-3-haiku',
-      'google/gemini-pro',
-      'meta-llama/llama-2-70b-chat',
-      'mistralai/mistral-7b-instruct',
-      'cohere/command-r',
+      'openai/gpt-4.1',
+      'openai/gpt-4.1-mini',
+      'x-ai/grok-4',
+      'anthropic/claude-sonnet-4',
+      'anthropic/claude-3.5-haiku',
+      'google/gemini-2.5-pro',
+      'google/gemini-2.5-flash',
+      'meta-llama/llama-4-scout',
+      'mistralai/mistral-medium-3',
+      'deepseek/deepseek-chat-v3-0324',
     ];
     
     const popularModels = models.filter(model => 
-      popularModelIds.some(id => model.id.includes(id.split('/')[1]))
+      popularModelIds.includes(model.id)
     );
     
     res.json({

@@ -55,6 +55,7 @@ interface ConversationContextType {
     currentConversation: Conversation | null;
     isLoading: boolean;
     isGenerating: boolean;
+    streamingResponses: Record<string, string>; // Track streaming responses
 
     // Actions
     fetchModels: () => Promise<void>;
@@ -64,7 +65,8 @@ interface ConversationContextType {
     removeModel: (modelId: string) => void;
     updateSystemPrompt: (modelId: string, prompt: string) => void;
     updateTone: (modelId: string, tone: string) => void;
-    startConversation: (topic: string, responseCount: number) => Promise<void>;
+    startConversation: (topic: string, responseCount: number, responseType: string) => Promise<void>;
+    startStreamingConversation: (topic: string, responseCount: number, responseType: string) => Promise<void>;
     continueConversation: (followupPrompt: string) => Promise<void>;
     clearConversation: () => void;
 }
@@ -93,6 +95,7 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
     const [currentConversation, setCurrentConversation] = useState<Conversation | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [streamingResponses, setStreamingResponses] = useState<Record<string, string>>({});
 
     const fetchModels = useCallback(async () => {
         try {
@@ -167,7 +170,7 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         }));
     }, []);
 
-    const startConversation = useCallback(async (topic: string, responseCount: number) => {
+    const startConversation = useCallback(async (topic: string, responseCount: number, responseType: string) => {
         if (selectedModels.length === 0) {
             toast.error('Please select at least one model');
             return;
@@ -180,7 +183,8 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
                 models: selectedModels,
                 systemPrompts,
                 tones,
-                responseCount
+                responseCount,
+                responseType
             });
 
             setCurrentConversation(response.data.data);
@@ -188,6 +192,139 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         } catch (error) {
             toast.error('Failed to start conversation');
             console.error('Error starting conversation:', error);
+        } finally {
+            setIsGenerating(false);
+        }
+    }, [selectedModels, systemPrompts, tones]);
+
+    const startStreamingConversation = useCallback(async (topic: string, responseCount: number, responseType: string) => {
+        if (selectedModels.length === 0) {
+            toast.error('Please select at least one model');
+            return;
+        }
+
+        try {
+            setIsGenerating(true);
+            setStreamingResponses({});
+
+            // Note: We use fetch with stream reader instead of EventSource for better control
+
+            // Send the request data (we'll need to modify this for EventSource)
+            const response = await fetch(`${api.defaults.baseURL}/conversations/start-stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    topic,
+                    models: selectedModels,
+                    systemPrompts,
+                    tones,
+                    responseCount,
+                    responseType
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to start streaming conversation');
+            }
+
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+
+            if (!reader) {
+                throw new Error('No response body');
+            }
+
+            let done = false;
+            while (!done) {
+                const { value, done: readerDone } = await reader.read();
+                done = readerDone;
+
+                if (value) {
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data.trim()) {
+                                try {
+                                    const parsed = JSON.parse(data);
+
+                                    switch (parsed.type) {
+                                        case 'conversation':
+                                            setCurrentConversation(parsed.data);
+                                            break;
+                                        case 'round_start':
+                                            // Optional: Show round progress
+                                            break;
+                                        case 'model_start':
+                                            setStreamingResponses(prev => ({
+                                                ...prev,
+                                                [parsed.data.model.id]: ''
+                                            }));
+                                            break;
+                                        case 'model_chunk':
+                                            setStreamingResponses(prev => ({
+                                                ...prev,
+                                                [parsed.data.model.id]: parsed.data.fullText
+                                            }));
+                                            break;
+                                        case 'model_complete':
+                                            setCurrentConversation(prev => prev ? {
+                                                ...prev,
+                                                responses: [...prev.responses, parsed.data],
+                                                messages: [...prev.messages, {
+                                                    role: 'user',
+                                                    content: `Here's what ${parsed.data.model.name} said: ${parsed.data.response}`
+                                                }]
+                                            } : null);
+                                            setStreamingResponses(prev => {
+                                                const newResponses = { ...prev };
+                                                delete newResponses[parsed.data.model.id];
+                                                return newResponses;
+                                            });
+                                            break;
+                                        case 'model_error':
+                                            setCurrentConversation(prev => prev ? {
+                                                ...prev,
+                                                responses: [...prev.responses, parsed.data],
+                                                messages: [...prev.messages, {
+                                                    role: 'user',
+                                                    content: `Here's what ${parsed.data.model.name} said: [Error: Unable to generate response]`
+                                                }]
+                                            } : null);
+                                            setStreamingResponses(prev => {
+                                                const newResponses = { ...prev };
+                                                delete newResponses[parsed.data.model.id];
+                                                return newResponses;
+                                            });
+                                            toast.error(`Error from ${parsed.data.model.name}`);
+                                            break;
+                                        case 'round_complete':
+                                            // Optional: Show round completion
+                                            break;
+                                        case 'conversation_complete':
+                                            setCurrentConversation(parsed.data);
+                                            setStreamingResponses({});
+                                            toast.success('Conversation completed!');
+                                            break;
+                                        case 'error':
+                                            toast.error(parsed.data.message);
+                                            break;
+                                    }
+                                } catch (parseError) {
+                                    console.error('Error parsing streaming data:', parseError);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            toast.error('Failed to start streaming conversation');
+            console.error('Error starting streaming conversation:', error);
         } finally {
             setIsGenerating(false);
         }
@@ -230,6 +367,7 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         setSelectedModels([]);
         setSystemPrompts({});
         setTones({});
+        setStreamingResponses({});
     }, []);
 
     const value: ConversationContextType = {
@@ -242,6 +380,7 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         currentConversation,
         isLoading,
         isGenerating,
+        streamingResponses,
         fetchModels,
         fetchPopularModels,
         fetchTones,
@@ -250,13 +389,10 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         updateSystemPrompt,
         updateTone,
         startConversation,
+        startStreamingConversation,
         continueConversation,
         clearConversation,
     };
 
-    return (
-        <ConversationContext.Provider value={value}>
-            {children}
-        </ConversationContext.Provider>
-    );
+    return <ConversationContext.Provider value={value}>{children}</ConversationContext.Provider>;
 }; 

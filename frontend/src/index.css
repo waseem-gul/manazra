@@ -52,6 +52,43 @@
   .select {
     @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 bg-white;
   }
+  
+  .slider {
+    @apply bg-gray-200 rounded-lg appearance-none cursor-pointer;
+    height: 8px;
+  }
+  
+  .slider::-webkit-slider-thumb {
+    @apply appearance-none bg-primary-600 rounded-full cursor-pointer;
+    width: 20px;
+    height: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s;
+  }
+  
+  .slider::-webkit-slider-thumb:hover {
+    @apply bg-primary-700;
+  }
+  
+  .slider::-moz-range-thumb {
+    @apply bg-primary-600 rounded-full cursor-pointer border-0;
+    width: 20px;
+    height: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.2s;
+  }
+  
+  .slider::-moz-range-thumb:hover {
+    @apply bg-primary-700;
+  }
+  
+  .slider:focus {
+    outline: none;
+  }
+  
+  .slider:focus::-webkit-slider-thumb {
+    @apply ring-2 ring-primary-500 ring-offset-2;
+  }
 }
 
 @layer utilities {

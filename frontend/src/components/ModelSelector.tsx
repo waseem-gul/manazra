@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useConversation } from '../contexts/ConversationContext';
 import { X, Search, Plus, Star, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 interface ModelSelectorProps {
     isOpen: boolean;
@@ -34,32 +35,34 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ isOpen, onClose }) => {
 
     const handleAddModel = (model: any) => {
         addModel(model);
-        onClose();
+        toast.success(`${model.name} added to conversation!`);
     };
 
     const isSelected = (modelId: string) => {
         return selectedModels.some(m => m.id === modelId);
     };
 
-    // Helper function to safely format pricing
-    const formatPrice = (price: any): string => {
+    // Helper function to safely format pricing per 1M tokens
+    const formatPricePer1M = (price: any): string => {
         if (price === null || price === undefined) return '0';
 
+        let numPrice = 0;
         // If it's already a number
         if (typeof price === 'number') {
-            return price.toFixed(6);
-        }
-
-        // If it's a string, try to convert it
-        if (typeof price === 'string') {
-            const numPrice = parseFloat(price);
-            if (!isNaN(numPrice)) {
-                return numPrice.toFixed(6);
+            numPrice = price;
+        } else if (typeof price === 'string') {
+            // If it's a string, try to convert it
+            numPrice = parseFloat(price);
+            if (isNaN(numPrice)) {
+                return '0';
             }
+        } else {
+            return '0';
         }
 
-        // Fallback
-        return '0';
+        // Convert to price per 1M tokens
+        const pricePer1M = numPrice * 1000000;
+        return pricePer1M.toFixed(2);
     };
 
     // Helper function to safely format context length
@@ -92,7 +95,14 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ isOpen, onClose }) => {
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b">
-                    <h2 className="text-xl font-semibold">Select AI Models</h2>
+                    <div>
+                        <h2 className="text-xl font-semibold">Select AI Models</h2>
+                        {selectedModels.length > 0 && (
+                            <p className="text-sm text-gray-500 mt-1">
+                                {selectedModels.length} model{selectedModels.length === 1 ? '' : 's'} selected
+                            </p>
+                        )}
+                    </div>
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -146,8 +156,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ isOpen, onClose }) => {
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -20 }}
                                         className={`border rounded-lg p-4 transition-all hover:shadow-md ${isSelected(model.id)
-                                                ? 'border-primary-300 bg-primary-50'
-                                                : 'border-gray-200 hover:border-gray-300'
+                                            ? 'border-primary-300 bg-primary-50'
+                                            : 'border-gray-200 hover:border-gray-300'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">
@@ -158,8 +168,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ isOpen, onClose }) => {
                                                     <span>Context: {formatContextLength(model.contextLength)}</span>
                                                     {model.pricing && (
                                                         <span>
-                                                            ${formatPrice(model.pricing.prompt)}/prompt •
-                                                            ${formatPrice(model.pricing.completion)}/completion
+                                                            Input: ${formatPricePer1M(model.pricing.prompt)}/1M •
+                                                            Output: ${formatPricePer1M(model.pricing.completion)}/1M
                                                         </span>
                                                     )}
                                                 </div>
@@ -168,8 +178,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ isOpen, onClose }) => {
                                                 onClick={() => handleAddModel(model)}
                                                 disabled={isSelected(model.id)}
                                                 className={`btn ${isSelected(model.id)
-                                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                        : 'btn-primary'
+                                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                    : 'btn-primary'
                                                     }`}
                                             >
                                                 {isSelected(model.id) ? (
