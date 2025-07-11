@@ -20,11 +20,11 @@
         "chat",
         "models"
     ],
-    "author": "Manazra Team",
+    "author": "Waseem Gul",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/yourusername/manazra"
+        "url": "https://github.com/waseem-gul/manazra"
     },
     "devDependencies": {
         "concurrently": "^8.2.2"

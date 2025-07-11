@@ -23,7 +23,7 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/manazra.git
+   git clone https://github.com/waseem-gul/manazra.git
    cd manazra
    ```
 
@@ -207,7 +207,7 @@ docker run -d \
 1. **Server Setup**
    ```bash
    # Clone repository
-   git clone https://github.com/yourusername/manazra.git
+   git clone https://github.com/waseem-gul/manazra.git
    cd manazra
    
    # Set up environment
@@ -298,6 +298,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
+- [Cursor](https://cursor.com) for their brilliant IDE
 - [OpenRouter.ai](https://openrouter.ai) for providing access to multiple AI models
 - [React](https://reactjs.org/) and [Tailwind CSS](https://tailwindcss.com/) for the amazing frontend tools
 - [Express.js](https://expressjs.com/) for the robust backend framework
@@ -323,6 +324,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ by the Manazra Team**
+**Made with ❤️ by Waseem Gul**
 
-[Live Demo](https://manazra.com) • [Documentation](https://docs.manazra.com) • [GitHub](https://github.com/yourusername/manazra) 
+[Live Demo](https://manazra.com) • [Documentation](https://docs.manazra.com) • [GitHub](https://github.com/waseem-gul/manazra) 
