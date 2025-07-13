@@ -44,4 +44,28 @@ api.interceptors.response.use(
   }
 );
 
+// API Key Management
+export const validateApiKey = async (apiKey: string): Promise<boolean> => {
+  try {
+    const response = await api.post('/auth/validate-key', { apiKey });
+    return response.data.success;
+  } catch (error) {
+    console.error('API key validation error:', error);
+    return false;
+  }
+};
+
+export const saveApiKey = async (apiKey: string): Promise<void> => {
+  // Save to localStorage for client-side persistence
+  localStorage.setItem('openrouter_api_key', apiKey);
+  
+  // Also send to backend for server-side validation and storage
+  try {
+    await api.post('/auth/save-key', { apiKey });
+  } catch (error) {
+    console.error('Failed to save API key to server:', error);
+    // Don't throw error as we've already saved locally
+  }
+};
+
 export default api; 

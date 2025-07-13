@@ -52,6 +52,7 @@ app.use('/api/', limiter);
 // Routes
 app.use('/api/models', require('./routes/models'));
 app.use('/api/conversations', require('./routes/conversations'));
+app.use('/api/auth', require('./routes/auth'));
 
 // Health check
 app.get('/health', (req, res) => {

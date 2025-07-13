@@ -3,6 +3,7 @@ import { useConversation } from '../contexts/ConversationContext';
 import { Plus, X, Play, Loader2, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ModelSelector from './ModelSelector';
+import ApiKeySetup from './ApiKeySetup';
 
 const ConversationSetup: React.FC = () => {
     const {
@@ -25,6 +26,7 @@ const ConversationSetup: React.FC = () => {
     const [responseCount, setResponseCount] = useState(1);
     const [responseType, setResponseType] = useState('normal');
     const [showModelSelector, setShowModelSelector] = useState(false);
+    const [isApiKeyValid, setIsApiKeyValid] = useState(false);
 
 
     useEffect(() => {
@@ -51,6 +53,9 @@ const ConversationSetup: React.FC = () => {
 
     return (
         <div className="space-y-6">
+            {/* API Key Setup */}
+            <ApiKeySetup onApiKeyValidated={setIsApiKeyValid} />
+
             {/* Topic Input */}
             <div className="card p-6">
                 <h2 className="text-xl font-semibold mb-4 flex items-center">
@@ -240,7 +245,7 @@ const ConversationSetup: React.FC = () => {
                 <div className="flex space-x-3">
                     <button
                         onClick={handleStartConversation}
-                        disabled={!topic.trim() || selectedModels.length === 0 || isGenerating}
+                        disabled={!topic.trim() || selectedModels.length === 0 || isGenerating || !isApiKeyValid}
                         className="btn btn-primary flex-1"
                     >
                         {isGenerating ? (

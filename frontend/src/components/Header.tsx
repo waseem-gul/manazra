@@ -30,7 +30,7 @@ const Header: React.FC = () => {
                             About
                         </a>
                         <a
-                            href="https://github.com/manazra/manazra"
+                            href="https://github.com/waseem-gul/manazra"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"

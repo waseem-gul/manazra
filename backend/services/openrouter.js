@@ -2,12 +2,19 @@ const axios = require('axios');
 
 class OpenRouterService {
   constructor() {
-    this.apiKey = process.env.OPENROUTER_API_KEY;
     this.baseUrl = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
-    this.client = axios.create({
+  }
+
+  createClient(apiKey = null) {
+    const key = apiKey || process.env.OPENROUTER_API_KEY;
+    if (!key) {
+      throw new Error('No API key provided');
+    }
+    
+    return axios.create({
       baseURL: this.baseUrl,
       headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
+        'Authorization': `Bearer ${key}`,
         'HTTP-Referer': 'https://manazra.com',
         'X-Title': 'Manazra - AI Conversation Tool',
         'Content-Type': 'application/json',
@@ -15,9 +22,10 @@ class OpenRouterService {
     });
   }
 
-  async getAvailableModels() {
+  async getAvailableModels(apiKey = null) {
     try {
-      const response = await this.client.get('/models');
+      const client = this.createClient(apiKey);
+      const response = await client.get('/models');
       return response.data.data.filter(model => !model.id.includes('free')); // Filter out free models for quality
     } catch (error) {
       console.error('Error fetching models:', error.response?.data || error.message);
@@ -25,7 +33,7 @@ class OpenRouterService {
     }
   }
 
-  async generateResponse(model, messages, systemPrompt = '', temperature = 0.7) {
+  async generateResponse(model, messages, systemPrompt = '', temperature = 0.7, apiKey = null) {
     try {
       const requestData = {
         model: model,
@@ -50,7 +58,8 @@ class OpenRouterService {
         console.log('━'.repeat(80));
       }
 
-      const response = await this.client.post('/chat/completions', requestData);
+      const client = this.createClient(apiKey);
+      const response = await client.post('/chat/completions', requestData);
       const content = response.data.choices[0].message.content;
 
       // Development logging
@@ -76,7 +85,7 @@ class OpenRouterService {
     }
   }
 
-  async generateStreamingResponse(model, messages, systemPrompt = '', temperature = 0.7) {
+  async generateStreamingResponse(model, messages, systemPrompt = '', temperature = 0.7, apiKey = null) {
     try {
       const requestData = {
         model: model,
@@ -103,7 +112,8 @@ class OpenRouterService {
         console.log('━'.repeat(80));
       }
 
-      const response = await this.client.post('/chat/completions', requestData, {
+      const client = this.createClient(apiKey);
+      const response = await client.post('/chat/completions', requestData, {
         responseType: 'stream',
       });
 
