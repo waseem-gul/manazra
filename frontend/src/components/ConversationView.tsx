@@ -1,13 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useConversation } from '../contexts/ConversationContext';
 import { MessageSquare, Clock, User, Bot, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 
+// Color palette for models - distinct colors that work well together
+const MODEL_COLORS = [
+    { bg: 'bg-blue-100', text: 'text-blue-600', bgLight: 'bg-blue-50', textDark: 'text-blue-900', textLight: 'text-blue-800' },
+    { bg: 'bg-purple-100', text: 'text-purple-600', bgLight: 'bg-purple-50', textDark: 'text-purple-900', textLight: 'text-purple-800' },
+    { bg: 'bg-green-100', text: 'text-green-600', bgLight: 'bg-green-50', textDark: 'text-green-900', textLight: 'text-green-800' },
+    { bg: 'bg-orange-100', text: 'text-orange-600', bgLight: 'bg-orange-50', textDark: 'text-orange-900', textLight: 'text-orange-800' },
+    { bg: 'bg-pink-100', text: 'text-pink-600', bgLight: 'bg-pink-50', textDark: 'text-pink-900', textLight: 'text-pink-800' },
+    { bg: 'bg-indigo-100', text: 'text-indigo-600', bgLight: 'bg-indigo-50', textDark: 'text-indigo-900', textLight: 'text-indigo-800' },
+    { bg: 'bg-teal-100', text: 'text-teal-600', bgLight: 'bg-teal-50', textDark: 'text-teal-900', textLight: 'text-teal-800' },
+    { bg: 'bg-yellow-100', text: 'text-yellow-600', bgLight: 'bg-yellow-50', textDark: 'text-yellow-900', textLight: 'text-yellow-800' },
+    { bg: 'bg-red-100', text: 'text-red-600', bgLight: 'bg-red-50', textDark: 'text-red-900', textLight: 'text-red-800' },
+    { bg: 'bg-cyan-100', text: 'text-cyan-600', bgLight: 'bg-cyan-50', textDark: 'text-cyan-900', textLight: 'text-cyan-800' },
+];
+
 const ConversationView: React.FC = () => {
     const { currentConversation, isGenerating, continueConversation, clearConversation, streamingResponses } = useConversation();
     const [followupPrompt, setFollowupPrompt] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Create a color mapping for models
+    const modelColors = useMemo(() => {
+        if (!currentConversation) return {};
+
+        const colorMap: Record<string, typeof MODEL_COLORS[0]> = {};
+        currentConversation.models.forEach((model, index) => {
+            colorMap[model.id] = MODEL_COLORS[index % MODEL_COLORS.length];
+        });
+        return colorMap;
+    }, [currentConversation]);
 
     const handleFollowup = async () => {
         if (!followupPrompt.trim()) return;
@@ -70,14 +95,17 @@ const ConversationView: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                        {currentConversation.models.map((model) => (
-                            <div
-                                key={model.id}
-                                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
-                            >
-                                {model.name}
-                            </div>
-                        ))}
+                        {currentConversation.models.map((model) => {
+                            const colors = modelColors[model.id];
+                            return (
+                                <div
+                                    key={model.id}
+                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.textDark}`}
+                                >
+                                    {model.name}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
@@ -107,39 +135,42 @@ const ConversationView: React.FC = () => {
 
                     {/* AI Responses */}
                     <AnimatePresence>
-                        {currentConversation.responses.map((response, index) => (
-                            <motion.div
-                                key={`${response.model.id}-${index}`}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                transition={{ duration: 0.3, delay: index * 0.1 }}
-                                className="flex items-start space-x-3"
-                            >
-                                <div className={`${response.error ? 'bg-red-100' : 'bg-blue-100'} p-2 rounded-lg`}>
-                                    <Bot className={`w-5 h-5 ${response.error ? 'text-red-600' : 'text-blue-600'}`} />
-                                </div>
-                                <div className="flex-1">
-                                    <div className={`${response.error ? 'bg-red-50' : 'bg-blue-50'} rounded-lg p-4`}>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className={`font-medium ${response.error ? 'text-red-900' : 'text-blue-900'}`}>
-                                                {response.model.name}
-                                            </span>
-                                            <span className={`text-xs ${response.error ? 'text-red-600' : 'text-blue-600'}`}>
-                                                {formatTimestamp(response.timestamp)}
-                                            </span>
-                                        </div>
-                                        <div className={`${response.error ? 'text-red-800' : 'text-blue-800'} prose prose-sm max-w-none`}>
-                                            {response.error ? (
-                                                <div className="whitespace-pre-wrap">{response.response}</div>
-                                            ) : (
-                                                <ReactMarkdown>{response.response}</ReactMarkdown>
-                                            )}
+                        {currentConversation.responses.map((response, index) => {
+                            const colors = modelColors[response.model.id];
+                            return (
+                                <motion.div
+                                    key={`${response.model.id}-${index}`}
+                                    initial={{ opacity: 0, y: 0 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 0 }}
+                                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                                    className="flex items-start space-x-3"
+                                >
+                                    <div className={`${response.error ? 'bg-red-100' : colors.bg} p-2 rounded-lg`}>
+                                        <Bot className={`w-5 h-5 ${response.error ? 'text-red-600' : colors.text}`} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className={`${response.error ? 'bg-red-50' : colors.bgLight} rounded-lg p-4`}>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className={`font-medium ${response.error ? 'text-red-900' : colors.textDark}`}>
+                                                    {response.model.name}
+                                                </span>
+                                                <span className={`text-xs ${response.error ? 'text-red-600' : colors.text}`}>
+                                                    {formatTimestamp(response.timestamp)}
+                                                </span>
+                                            </div>
+                                            <div className={`${response.error ? 'text-red-800' : colors.textLight} prose prose-sm max-w-none`}>
+                                                {response.error ? (
+                                                    <div className="whitespace-pre-wrap">{response.response}</div>
+                                                ) : (
+                                                    <ReactMarkdown>{response.response}</ReactMarkdown>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </motion.div>
-                        ))}
+                                </motion.div>
+                            );
+                        })}
                     </AnimatePresence>
 
                     {/* Streaming Responses */}

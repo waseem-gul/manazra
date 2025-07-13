@@ -18,18 +18,6 @@ const Header: React.FC = () => {
 
                     <nav className="flex items-center space-x-6">
                         <a
-                            href="#features"
-                            className="text-gray-600 hover:text-gray-900 transition-colors"
-                        >
-                            Features
-                        </a>
-                        <a
-                            href="#about"
-                            className="text-gray-600 hover:text-gray-900 transition-colors"
-                        >
-                            About
-                        </a>
-                        <a
                             href="https://github.com/waseem-gul/manazra"
                             target="_blank"
                             rel="noopener noreferrer"
