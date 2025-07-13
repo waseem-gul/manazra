@@ -7,6 +7,12 @@
 
 **Manazra** is an opensource AI conversation tool that allows users to create engaging discussions between different AI models. Choose your topic, select multiple AI models, configure their personalities, and watch them have thoughtful conversations!
 
+## 🎥 Demo
+
+https://github.com/waseem-gul/manazra/assets/manazra-demo.mp4
+
+*Watch Manazra in action - See how easy it is to create engaging AI conversations!*
+
 ## ✨ Features
 
 - 🎯 **Multi-Model Conversations**: Select from various AI models (GPT-4, Claude, Gemini, etc.)
