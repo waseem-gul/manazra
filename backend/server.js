@@ -19,10 +19,23 @@ const corsOptions = {
       'http://localhost:3000',
       'http://127.0.0.1:3000',
       'https://manazra.com',
-      'https://www.manazra.com'
+      'https://www.manazra.com',
+      // Add Vercel preview and production URLs
+      /^https:\/\/.*\.vercel\.app$/,
+      /^https:\/\/.*\.vercel\.app\/.*$/
     ];
     
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+    // Check if origin matches any allowed origin (including regex patterns)
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return allowedOrigin === origin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
