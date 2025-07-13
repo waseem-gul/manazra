@@ -5,7 +5,10 @@ const openRouterService = require('../services/openrouter');
 // Get available models
 router.get('/', async (req, res) => {
   try {
-    const models = await openRouterService.getAvailableModels();
+    // Get API key from headers (sent by frontend)
+    const apiKey = req.headers['x-openrouter-key'];
+    
+    const models = await openRouterService.getAvailableModels(apiKey);
     
     // Format models for frontend consumption
     const formattedModels = models.map(model => ({
@@ -35,7 +38,10 @@ router.get('/', async (req, res) => {
 // Get popular/recommended models
 router.get('/popular', async (req, res) => {
   try {
-    const models = await openRouterService.getAvailableModels();
+    // Get API key from headers (sent by frontend)
+    const apiKey = req.headers['x-openrouter-key'];
+    
+    const models = await openRouterService.getAvailableModels(apiKey);
     
     // Filter for popular models
     const popularModelIds = [

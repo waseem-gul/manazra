@@ -15,7 +15,11 @@ export const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Add any auth headers here if needed
+    // Add API key from localStorage to all requests
+    const apiKey = localStorage.getItem('openrouter_api_key');
+    if (apiKey) {
+      config.headers['X-OpenRouter-Key'] = apiKey;
+    }
     return config;
   },
   (error) => {

@@ -178,13 +178,18 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
 
         try {
             setIsGenerating(true);
+
+            // Get API key from localStorage
+            const apiKey = localStorage.getItem('openrouter_api_key');
+
             const response = await api.post('/conversations/start', {
                 topic,
                 models: selectedModels,
                 systemPrompts,
                 tones,
                 responseCount,
-                responseType
+                responseType,
+                apiKey: apiKey // Add API key to request
             });
 
             setCurrentConversation(response.data.data);
@@ -207,6 +212,9 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
             setIsGenerating(true);
             setStreamingResponses({});
 
+            // Get API key from localStorage
+            const apiKey = localStorage.getItem('openrouter_api_key');
+
             // Note: We use fetch with stream reader instead of EventSource for better control
 
             // Send the request data (we'll need to modify this for EventSource)
@@ -221,7 +229,8 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
                     systemPrompts,
                     tones,
                     responseCount,
-                    responseType
+                    responseType,
+                    apiKey: apiKey // Add API key to request
                 }),
             });
 
@@ -338,12 +347,17 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
 
         try {
             setIsGenerating(true);
+
+            // Get API key from localStorage
+            const apiKey = localStorage.getItem('openrouter_api_key');
+
             const response = await api.post('/conversations/followup', {
                 messages: currentConversation.messages,
                 models: currentConversation.models,
                 systemPrompts: currentConversation.systemPrompts,
                 tones: currentConversation.tones,
-                followupPrompt
+                followupPrompt,
+                apiKey: apiKey // Add API key to request
             });
 
             setCurrentConversation(prev => prev ? {

@@ -5,7 +5,7 @@ const openRouterService = require('../services/openrouter');
 // Start a new conversation with streaming
 router.post('/start-stream', async (req, res) => {
   try {
-    const { topic, models, systemPrompts, tones, responseCount, responseType } = req.body;
+    const { topic, models, systemPrompts, tones, responseCount, responseType, apiKey } = req.body;
     
     // Validation
     if (!topic || !models || !Array.isArray(models) || models.length === 0) {
@@ -114,7 +114,9 @@ You are participating in a group discussion with the following AI models: ${part
           const stream = await openRouterService.generateStreamingResponse(
             model.id,
             conversation.messages,
-            systemPrompt
+            systemPrompt,
+            0.7, // temperature
+            apiKey // Pass API key from frontend
           );
         
         let responseText = '';
@@ -281,7 +283,7 @@ You are participating in a group discussion with the following AI models: ${part
 // Start a new conversation
 router.post('/start', async (req, res) => {
   try {
-    const { topic, models, systemPrompts, tones, responseCount, responseType } = req.body;
+    const { topic, models, systemPrompts, tones, responseCount, responseType, apiKey } = req.body;
     
     // Validation
     if (!topic || !models || !Array.isArray(models) || models.length === 0) {
@@ -318,7 +320,8 @@ You are participating in a group discussion with the following AI models: ${part
       systemPrompts || {},
       tones || {},
       responseType || 'normal',
-      responseCount || 1
+      responseCount || 1,
+      apiKey // Pass API key from frontend
     );
     
     // Create conversation object
@@ -352,7 +355,7 @@ You are participating in a group discussion with the following AI models: ${part
 // Continue a conversation
 router.post('/continue', async (req, res) => {
   try {
-    const { conversationId, models, systemPrompts, tones, messages } = req.body;
+    const { conversationId, models, systemPrompts, tones, messages, apiKey } = req.body;
     
     // Validation
     if (!conversationId || !models || !messages) {
@@ -370,7 +373,8 @@ router.post('/continue', async (req, res) => {
       systemPrompts || {},
       tones || {},
       'normal',
-      1
+      1,
+      apiKey // Pass API key from frontend
     );
     
     res.json({
@@ -394,7 +398,7 @@ router.post('/continue', async (req, res) => {
 // Generate follow-up responses
 router.post('/followup', async (req, res) => {
   try {
-    const { messages, models, systemPrompts, tones, followupPrompt } = req.body;
+    const { messages, models, systemPrompts, tones, followupPrompt, apiKey } = req.body;
     
     // Validation
     if (!messages || !models || !followupPrompt) {
@@ -418,7 +422,8 @@ router.post('/followup', async (req, res) => {
       systemPrompts || {},
       tones || {},
       'normal',
-      1
+      1,
+      apiKey // Pass API key from frontend
     );
     
     res.json({

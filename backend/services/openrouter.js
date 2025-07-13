@@ -139,7 +139,7 @@ class OpenRouterService {
     }
   }
 
-  async generateMultipleResponses(models, messages, systemPrompts = {}, tones = {}, responseType = 'normal', responseCount = 1) {
+  async generateMultipleResponses(models, messages, systemPrompts = {}, tones = {}, responseType = 'normal', responseCount = 1, apiKey = null) {
     const responses = [];
     const conversationMessages = [...messages];
     const participantNames = models.map(m => m.name).join(', ');
@@ -155,7 +155,7 @@ class OpenRouterService {
             model.name,
             participantNames
           );
-          const response = await this.generateResponse(model.id, conversationMessages, systemPrompt);
+          const response = await this.generateResponse(model.id, conversationMessages, systemPrompt, 0.7, apiKey);
           
           responses.push({
             model: model,
