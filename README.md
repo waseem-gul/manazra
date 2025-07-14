@@ -9,7 +9,7 @@
 
 ## 🎥 Demo
 
-[https://github.com/waseem-gul/manazra/assets/manazra-demo.mp4](https://github.com/waseem-gul/manazra/blob/main/assets/manazra-demo.mp4)
+![Demo](assets/demo.gif)
 
 *Watch Manazra in action - See how easy it is to create engaging AI conversations!*
 
