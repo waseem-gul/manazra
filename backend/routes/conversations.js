@@ -67,6 +67,14 @@ You are participating in a group discussion with the following AI models: ${part
       console.log('🤖 Models:', models.map(m => m.name).join(', '));
       console.log('🔄 Rounds:', responseCount || 1);
       console.log('📋 Response Type:', responseType || 'normal');
+      
+      // Voice mode specific logging
+      if (responseType === 'voice') {
+        console.log('🎤 VOICE MODE ENABLED');
+        console.log('🔊 TTS will be generated for each response');
+        console.log('📋 Responses will be formatted as JSON with input/instructions');
+      }
+      
       console.log('━'.repeat(80));
     }
     
@@ -99,6 +107,12 @@ You are participating in a group discussion with the following AI models: ${part
           if (process.env.NODE_ENV === 'development') {
             console.log(`\n🤖 [${model.name}] STARTING (Round ${round}/${totalRounds}):`);
             console.log('━'.repeat(60));
+            
+            // Voice mode specific logging
+            if (responseType === 'voice') {
+              console.log('🎤 VOICE MODE: Model will generate TTS-formatted response');
+              console.log('📋 Expected format: JSON with "input" and "instructions" fields');
+            }
           }
           
           // Send model start event with round info
@@ -110,111 +124,213 @@ You are participating in a group discussion with the following AI models: ${part
               totalRounds: totalRounds
             } 
           })}\n\n`);
-          
-          const stream = await openRouterService.generateStreamingResponse(
-            model.id,
-            conversation.messages,
-            systemPrompt,
-            0.7, // temperature
-            apiKey // Pass API key from frontend
-          );
-        
-        let responseText = '';
-        let responseCompleted = false;
-        
-        const completeResponse = () => {
-          if (!responseCompleted && responseText) {
-            responseCompleted = true;
-            const response = {
-              model: model,
-              response: responseText,
-              timestamp: new Date().toISOString(),
-            };
-            conversation.responses.push(response);
-            
-            // Add the response to conversation history for next models to see
-            conversation.messages.push({
-              role: 'user',
-              content: `Here's what ${model.name} said: ${responseText}`
-            });
-            
-            res.write(`data: ${JSON.stringify({ 
-              type: 'model_complete', 
-              data: response 
-            })}\n\n`);
-          }
-        };
-        
-        stream.on('data', (chunk) => {
-          const lines = chunk.toString().split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') {
-                // Stream finished for this model
-                if (process.env.NODE_ENV === 'development') {
-                  console.log(`\n🏁 [${model.id}] STREAMING COMPLETE:`);
-                  console.log('━'.repeat(80));
-                  console.log('📤 Final Response:', responseText);
-                  console.log('━'.repeat(80));
-                }
-                completeResponse();
-                return;
-              }
-              
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
-                  const delta = parsed.choices[0].delta;
-                  if (delta.content) {
-                    responseText += delta.content;
-                    
-                    // Development logging for chunks
-                    // if (process.env.NODE_ENV === 'development') {
-                    //   console.log(`📦 [${model.id}] CHUNK: "${delta.content}"`);
-                    // }
-                    
-                    res.write(`data: ${JSON.stringify({ 
-                      type: 'model_chunk', 
-                      data: { 
-                        model: model,
-                        chunk: delta.content,
-                        fullText: responseText
-                      } 
-                    })}\n\n`);
+
+          if (responseType === 'voice') {
+            // VOICE MODE: Use non-streaming response for complete JSON
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`\n🎤 VOICE MODE: Using non-streaming response for complete JSON`);
+              console.log('━'.repeat(60));
+            }
+                          try {
+                const response = await openRouterService.generateResponse(
+                  model.id,
+                  conversation.messages,
+                  systemPrompt,
+                  0.7,
+                  apiKey
+                );
+                
+                // Clean response for voice mode - remove markdown code blocks
+                let cleanedResponse = response;
+                if (responseType === 'voice') {
+                  // Remove markdown code blocks if present
+                  cleanedResponse = response.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim();
+                  
+                  // Development logging for cleaning
+                  if (process.env.NODE_ENV === 'development') {
+                    if (cleanedResponse !== response) {
+                      console.log('🧹 VOICE MODE: Cleaned markdown formatting from response');
+                    }
                   }
                 }
-              } catch (parseError) {
-                console.error('Error parsing streaming data:', parseError);
+                
+                const responseObj = {
+                  model: model,
+                  response: cleanedResponse,
+                  timestamp: new Date().toISOString(),
+                };
+                conversation.responses.push(responseObj);
+                
+                // Add the response to conversation history for next models to see
+                conversation.messages.push({
+                  role: 'user',
+                  content: `Here's what ${model.name} said: ${cleanedResponse}`
+                });
+                
+                res.write(`data: ${JSON.stringify({
+                  type: 'model_complete',
+                  data: responseObj
+                })}\n\n`);
+              
+              // Development logging for voice mode completion
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`\n🏁 [${model.id}] VOICE MODE COMPLETE:`);
+                console.log('━'.repeat(80));
+                console.log('📤 Final Response:', cleanedResponse);
+                try {
+                  const parsedResponse = JSON.parse(cleanedResponse);
+                  if (parsedResponse.input && parsedResponse.instructions) {
+                    console.log('✅ VOICE MODE: Valid JSON response detected');
+                    console.log('🎤 TTS Input:', parsedResponse.input);
+                    console.log('📋 TTS Instructions:', parsedResponse.instructions);
+                    console.log('🔊 Ready for TTS processing');
+                  } else {
+                    console.log('⚠️ VOICE MODE: Invalid JSON structure - missing input or instructions');
+                    console.log('📋 Raw response will be used as fallback');
+                  }
+                } catch (parseError) {
+                  console.log('❌ VOICE MODE: JSON parsing failed - response is not valid JSON');
+                  console.log('📋 Raw response will be used as fallback');
+                  console.log('🚨 Parse error:', parseError.message);
+                }
+                console.log('━'.repeat(80));
               }
+            } catch (error) {
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`\n❌ [${model.name}] VOICE MODE ERROR (Round ${round}/${totalRounds}):`);
+                console.log('━'.repeat(60));
+                console.log('🚨 Error Message:', error.message);
+                console.log('🎤 VOICE MODE: TTS response generation failed');
+                console.log('🔊 TTS processing will be skipped for this model');
+                console.log('━'.repeat(60));
+              }
+              console.error(`Error with model ${model.id} in round ${round}:`, error.message);
+              const errorResponse = {
+                model: model,
+                response: `Error: ${error.message}`,
+                timestamp: new Date().toISOString(),
+                error: true,
+              };
+              conversation.responses.push(errorResponse);
+              // Add error to conversation history
+              conversation.messages.push({
+                role: 'user',
+                content: `Here's what ${model.name} said: [Error: Unable to generate response]`
+              });
+              res.write(`data: ${JSON.stringify({
+                type: 'model_error',
+                data: errorResponse
+              })}\n\n`);
             }
+          } else {
+            // STREAMING MODE (default for non-voice)
+            const stream = await openRouterService.generateStreamingResponse(
+              model.id,
+              conversation.messages,
+              systemPrompt,
+              0.7, // temperature
+              apiKey // Pass API key from frontend
+            );
+            let responseText = '';
+            let responseCompleted = false;
+            const completeResponse = () => {
+              if (!responseCompleted && responseText) {
+                responseCompleted = true;
+                const response = {
+                  model: model,
+                  response: responseText,
+                  timestamp: new Date().toISOString(),
+                };
+                conversation.responses.push(response);
+                // Add the response to conversation history for next models to see
+                conversation.messages.push({
+                  role: 'user',
+                  content: `Here's what ${model.name} said: ${responseText}`
+                });
+                res.write(`data: ${JSON.stringify({
+                  type: 'model_complete',
+                  data: response
+                })}\n\n`);
+              }
+            };
+            stream.on('data', (chunk) => {
+              const lines = chunk.toString().split('\n');
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6);
+                  if (data === '[DONE]') {
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log(`\n🏁 [${model.id}] STREAMING COMPLETE:`);
+                      console.log('━'.repeat(80));
+                      console.log('📤 Final Response:', responseText);
+                      if (responseType === 'voice') {
+                        try {
+                          const parsedResponse = JSON.parse(responseText);
+                          if (parsedResponse.input && parsedResponse.instructions) {
+                            console.log('✅ VOICE MODE: Valid JSON response detected');
+                            console.log('🎤 TTS Input:', parsedResponse.input);
+                            console.log('📋 TTS Instructions:', parsedResponse.instructions);
+                            console.log('🔊 Ready for TTS processing');
+                          } else {
+                            console.log('⚠️ VOICE MODE: Invalid JSON structure - missing input or instructions');
+                            console.log('📋 Raw response will be used as fallback');
+                          }
+                        } catch (parseError) {
+                          console.log('❌ VOICE MODE: JSON parsing failed - response is not valid JSON');
+                          console.log('📋 Raw response will be used as fallback');
+                          console.log('🚨 Parse error:', parseError.message);
+                        }
+                      }
+                      console.log('━'.repeat(80));
+                    }
+                    completeResponse();
+                    return;
+                  }
+                  try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
+                      const delta = parsed.choices[0].delta;
+                      if (delta.content) {
+                        responseText += delta.content;
+                        res.write(`data: ${JSON.stringify({
+                          type: 'model_chunk',
+                          data: {
+                            model: model,
+                            chunk: delta.content,
+                            fullText: responseText
+                          }
+                        })}\n\n`);
+                      }
+                    }
+                  } catch (parseError) {
+                    console.error('Error parsing streaming data:', parseError);
+                  }
+                }
+              }
+            });
+            stream.on('end', () => {
+              completeResponse();
+            });
+            stream.on('error', (error) => {
+              console.error(`Streaming error for model ${model.id}:`, error);
+              const errorResponse = {
+                model: model,
+                response: `Error: ${error.message}`,
+                timestamp: new Date().toISOString(),
+                error: true,
+              };
+              conversation.responses.push(errorResponse);
+              res.write(`data: ${JSON.stringify({
+                type: 'model_error',
+                data: errorResponse
+              })}\n\n`);
+            });
+            // Wait for stream to complete before moving to next model
+            await new Promise((resolve) => {
+              stream.on('end', resolve);
+              stream.on('error', resolve);
+            });
           }
-        });
-        
-        stream.on('end', () => {
-          completeResponse();
-        });
-        
-        stream.on('error', (error) => {
-          console.error(`Streaming error for model ${model.id}:`, error);
-          const errorResponse = {
-            model: model,
-            response: `Error: ${error.message}`,
-            timestamp: new Date().toISOString(),
-            error: true,
-          };
-          conversation.responses.push(errorResponse);
-          res.write(`data: ${JSON.stringify({ 
-            type: 'model_error', 
-            data: errorResponse 
-          })}\n\n`);
-        });
-        
-          // Wait for stream to complete before moving to next model
-          await new Promise((resolve) => {
-            stream.on('end', resolve);
-            stream.on('error', resolve);
-          });
           
         } catch (error) {
           // Development logging
@@ -222,6 +338,13 @@ You are participating in a group discussion with the following AI models: ${part
             console.log(`\n❌ [${model.name}] ERROR (Round ${round}/${totalRounds}):`);
             console.log('━'.repeat(60));
             console.log('🚨 Error Message:', error.message);
+            
+            // Voice mode specific error logging
+            if (responseType === 'voice') {
+              console.log('🎤 VOICE MODE: Error occurred during TTS response generation');
+              console.log('🔊 TTS processing will be skipped for this model');
+            }
+            
             console.log('━'.repeat(60));
           }
           
@@ -260,6 +383,31 @@ You are participating in a group discussion with the following AI models: ${part
       console.log('📊 Total Responses:', conversation.responses.length);
       console.log('✅ Successful Responses:', conversation.responses.filter(r => !r.error).length);
       console.log('❌ Failed Responses:', conversation.responses.filter(r => r.error).length);
+      
+      // Voice mode specific completion logging
+      if (responseType === 'voice') {
+        const voiceResponses = conversation.responses.filter(r => !r.error);
+        const validVoiceResponses = voiceResponses.filter(r => {
+          try {
+            // Clean response before parsing
+            let cleanedResponse = r.response;
+            if (r.response.includes('```json')) {
+              cleanedResponse = r.response.replace(/```json\s*/g, '').replace(/```\s*$/g, '').trim();
+            }
+            const parsed = JSON.parse(cleanedResponse);
+            return parsed.input && parsed.instructions;
+          } catch {
+            return false;
+          }
+        });
+        
+        console.log('🎤 VOICE MODE SUMMARY:');
+        console.log('🔊 Total Voice Responses:', voiceResponses.length);
+        console.log('✅ Valid TTS Responses:', validVoiceResponses.length);
+        console.log('⚠️ Invalid TTS Responses:', voiceResponses.length - validVoiceResponses.length);
+        console.log('🔊 Ready for frontend TTS processing');
+      }
+      
       console.log('━'.repeat(80));
     }
     

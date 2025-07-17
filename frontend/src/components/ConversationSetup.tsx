@@ -73,7 +73,7 @@ const ConversationSetup: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Response Type
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 gap-2">
                         <button
                             type="button"
                             onClick={() => setResponseType('precise')}
@@ -109,6 +109,18 @@ const ConversationSetup: React.FC = () => {
                         >
                             Detailed
                             <span className="block text-xs opacity-75">No limit</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setResponseType('voice')}
+                            className={`px-3 py-2 text-sm rounded-md transition-colors ${responseType === 'voice'
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            disabled={isGenerating}
+                        >
+                            Voice
+                            <span className="block text-xs opacity-75">Audio TTS</span>
                         </button>
                     </div>
                 </div>

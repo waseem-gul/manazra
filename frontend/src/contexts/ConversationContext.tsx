@@ -56,6 +56,8 @@ interface ConversationContextType {
     isLoading: boolean;
     isGenerating: boolean;
     streamingResponses: Record<string, string>; // Track streaming responses
+    isVoiceMode: boolean;
+    currentlyPlayingAudio: string | null; // Model ID that is currently playing audio
 
     // Actions
     fetchModels: () => Promise<void>;
@@ -69,6 +71,7 @@ interface ConversationContextType {
     startStreamingConversation: (topic: string, responseCount: number, responseType: string) => Promise<void>;
     continueConversation: (followupPrompt: string) => Promise<void>;
     clearConversation: () => void;
+    setCurrentlyPlayingAudio: (modelId: string | null) => void;
 }
 
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
@@ -96,6 +99,8 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
     const [isLoading, setIsLoading] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [streamingResponses, setStreamingResponses] = useState<Record<string, string>>({});
+    const [isVoiceMode, setIsVoiceMode] = useState(false);
+    const [currentlyPlayingAudio, setCurrentlyPlayingAudio] = useState<string | null>(null);
 
     const fetchModels = useCallback(async () => {
         try {
@@ -211,6 +216,7 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         try {
             setIsGenerating(true);
             setStreamingResponses({});
+            setIsVoiceMode(responseType === 'voice');
 
             // Get API key from localStorage
             const apiKey = localStorage.getItem('openrouter_api_key');
@@ -382,6 +388,8 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         setSystemPrompts({});
         setTones({});
         setStreamingResponses({});
+        setIsVoiceMode(false);
+        setCurrentlyPlayingAudio(null);
     }, []);
 
     const value: ConversationContextType = {
@@ -395,6 +403,8 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         isLoading,
         isGenerating,
         streamingResponses,
+        isVoiceMode,
+        currentlyPlayingAudio,
         fetchModels,
         fetchPopularModels,
         fetchTones,
@@ -406,6 +416,7 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({ chil
         startStreamingConversation,
         continueConversation,
         clearConversation,
+        setCurrentlyPlayingAudio,
     };
 
     return <ConversationContext.Provider value={value}>{children}</ConversationContext.Provider>;

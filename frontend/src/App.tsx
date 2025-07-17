@@ -3,12 +3,13 @@ import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import ConversationSetup from './components/ConversationSetup';
 import ConversationView from './components/ConversationView';
+import VoiceConversationView from './components/VoiceConversationView';
 import { ConversationProvider, useConversation } from './contexts/ConversationContext';
 import { motion } from 'framer-motion';
 
 // Main App Content Component
 const AppContent: React.FC = () => {
-    const { currentConversation } = useConversation();
+    const { currentConversation, isVoiceMode } = useConversation();
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -39,9 +40,9 @@ const AppContent: React.FC = () => {
                             </div>
                         </>
                     ) : (
-                        // Conversation Phase - Show conversation view with back button
+                        // Conversation Phase - Show appropriate view based on mode
                         <div className="space-y-6">
-                            <ConversationView />
+                            {isVoiceMode ? <VoiceConversationView /> : <ConversationView />}
                         </div>
                     )}
                 </motion.div>

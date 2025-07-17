@@ -1,86 +1,152 @@
 import React, { useState, useEffect } from 'react';
-import { Key, CheckCircle, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Key, CheckCircle, AlertCircle, Eye, EyeOff, Loader2, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { validateApiKey, saveApiKey } from '../services/api';
+import ttsService from '../services/tts';
 
 interface ApiKeySetupProps {
     onApiKeyValidated: (isValid: boolean) => void;
 }
 
 const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeyValidated }) => {
-    const [apiKey, setApiKey] = useState('');
-    const [showKey, setShowKey] = useState(false);
-    const [isValidating, setIsValidating] = useState(false);
-    const [validationStatus, setValidationStatus] = useState<'none' | 'valid' | 'invalid'>('none');
-    const [showPopup, setShowPopup] = useState(false);
-    const [errorMessage, setErrorMessage] = useState('');
+    // OpenRouter API Key state
+    const [openRouterApiKey, setOpenRouterApiKey] = useState('');
+    const [showOpenRouterKey, setShowOpenRouterKey] = useState(false);
+    const [isValidatingOpenRouter, setIsValidatingOpenRouter] = useState(false);
+    const [openRouterValidationStatus, setOpenRouterValidationStatus] = useState<'none' | 'valid' | 'invalid'>('none');
+    const [showOpenRouterPopup, setShowOpenRouterPopup] = useState(false);
+    const [openRouterErrorMessage, setOpenRouterErrorMessage] = useState('');
+
+    // OpenAI API Key state
+    const [openAIApiKey, setOpenAIApiKey] = useState('');
+    const [showOpenAIKey, setShowOpenAIKey] = useState(false);
+    const [isValidatingOpenAI, setIsValidatingOpenAI] = useState(false);
+    const [openAIValidationStatus, setOpenAIValidationStatus] = useState<'none' | 'valid' | 'invalid'>('none');
+    const [showOpenAIPopup, setShowOpenAIPopup] = useState(false);
+    const [openAIErrorMessage, setOpenAIErrorMessage] = useState('');
 
     useEffect(() => {
-        // Check if API key exists in localStorage
-        const storedKey = localStorage.getItem('openrouter_api_key');
-        if (storedKey) {
-            setApiKey(storedKey);
-            validateStoredKey(storedKey);
-        } else {
-            onApiKeyValidated(false);
+        // Check if API keys exist in localStorage
+        const storedOpenRouterKey = localStorage.getItem('openrouter_api_key');
+        const storedOpenAIKey = localStorage.getItem('openai_api_key');
+
+        if (storedOpenRouterKey) {
+            setOpenRouterApiKey(storedOpenRouterKey);
+            validateStoredOpenRouterKey(storedOpenRouterKey);
         }
+
+        if (storedOpenAIKey) {
+            setOpenAIApiKey(storedOpenAIKey);
+            validateStoredOpenAIKey(storedOpenAIKey);
+        }
+
+        // Validate overall API key status
+        onApiKeyValidated(!!storedOpenRouterKey);
     }, [onApiKeyValidated]);
 
-    const validateStoredKey = async (key: string) => {
-        setIsValidating(true);
-        setValidationStatus('none');
+    const validateStoredOpenRouterKey = async (key: string) => {
+        setIsValidatingOpenRouter(true);
+        setOpenRouterValidationStatus('none');
 
         try {
             const isValid = await validateApiKey(key);
-            setValidationStatus(isValid ? 'valid' : 'invalid');
+            setOpenRouterValidationStatus(isValid ? 'valid' : 'invalid');
             onApiKeyValidated(isValid);
         } catch (error) {
-            setValidationStatus('invalid');
+            setOpenRouterValidationStatus('invalid');
             onApiKeyValidated(false);
         } finally {
-            setIsValidating(false);
+            setIsValidatingOpenRouter(false);
         }
     };
 
-    const handleSaveApiKey = async () => {
-        if (!apiKey.trim()) {
-            setErrorMessage('Please enter an API key');
+    const validateStoredOpenAIKey = async (key: string) => {
+        setIsValidatingOpenAI(true);
+        setOpenAIValidationStatus('none');
+
+        try {
+            const isValid = await ttsService.validateApiKey(key);
+            setOpenAIValidationStatus(isValid ? 'valid' : 'invalid');
+        } catch (error) {
+            setOpenAIValidationStatus('invalid');
+        } finally {
+            setIsValidatingOpenAI(false);
+        }
+    };
+
+    const handleSaveOpenRouterApiKey = async () => {
+        if (!openRouterApiKey.trim()) {
+            setOpenRouterErrorMessage('Please enter an API key');
             return;
         }
 
-        setIsValidating(true);
-        setErrorMessage('');
+        setIsValidatingOpenRouter(true);
+        setOpenRouterErrorMessage('');
 
         try {
-            const isValid = await validateApiKey(apiKey);
+            const isValid = await validateApiKey(openRouterApiKey);
             if (isValid) {
-                await saveApiKey(apiKey);
-                setValidationStatus('valid');
+                await saveApiKey(openRouterApiKey);
+                setOpenRouterValidationStatus('valid');
                 onApiKeyValidated(true);
-                setShowPopup(false);
-                setErrorMessage('');
+                setShowOpenRouterPopup(false);
+                setOpenRouterErrorMessage('');
             } else {
-                setValidationStatus('invalid');
-                setErrorMessage('Invalid API key. Please check and try again.');
+                setOpenRouterValidationStatus('invalid');
+                setOpenRouterErrorMessage('Invalid API key. Please check and try again.');
                 onApiKeyValidated(false);
             }
         } catch (error) {
-            setValidationStatus('invalid');
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to validate API key');
+            setOpenRouterValidationStatus('invalid');
+            setOpenRouterErrorMessage(error instanceof Error ? error.message : 'Failed to validate API key');
             onApiKeyValidated(false);
         } finally {
-            setIsValidating(false);
+            setIsValidatingOpenRouter(false);
         }
     };
 
-    const handleRemoveApiKey = () => {
+    const handleSaveOpenAIApiKey = async () => {
+        if (!openAIApiKey.trim()) {
+            setOpenAIErrorMessage('Please enter an API key');
+            return;
+        }
+
+        setIsValidatingOpenAI(true);
+        setOpenAIErrorMessage('');
+
+        try {
+            const isValid = await ttsService.validateApiKey(openAIApiKey);
+            if (isValid) {
+                localStorage.setItem('openai_api_key', openAIApiKey);
+                setOpenAIValidationStatus('valid');
+                setShowOpenAIPopup(false);
+                setOpenAIErrorMessage('');
+            } else {
+                setOpenAIValidationStatus('invalid');
+                setOpenAIErrorMessage('Invalid API key. Please check and try again.');
+            }
+        } catch (error) {
+            setOpenAIValidationStatus('invalid');
+            setOpenAIErrorMessage(error instanceof Error ? error.message : 'Failed to validate API key');
+        } finally {
+            setIsValidatingOpenAI(false);
+        }
+    };
+
+    const handleRemoveOpenRouterApiKey = () => {
         localStorage.removeItem('openrouter_api_key');
-        setApiKey('');
-        setValidationStatus('none');
+        setOpenRouterApiKey('');
+        setOpenRouterValidationStatus('none');
         onApiKeyValidated(false);
     };
 
-    const getStatusIcon = () => {
+    const handleRemoveOpenAIApiKey = () => {
+        localStorage.removeItem('openai_api_key');
+        setOpenAIApiKey('');
+        setOpenAIValidationStatus('none');
+    };
+
+    const getStatusIcon = (isValidating: boolean, validationStatus: string) => {
         if (isValidating) {
             return <Loader2 className="w-4 h-4 animate-spin text-blue-500" />;
         }
@@ -95,7 +161,7 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeyValidated }) => {
         }
     };
 
-    const getStatusText = () => {
+    const getStatusText = (isValidating: boolean, validationStatus: string) => {
         if (isValidating) return 'Validating...';
 
         switch (validationStatus) {
@@ -108,7 +174,7 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeyValidated }) => {
         }
     };
 
-    const getStatusColor = () => {
+    const getStatusColor = (isValidating: boolean, validationStatus: string) => {
         if (isValidating) return 'text-blue-600';
 
         switch (validationStatus) {
@@ -123,46 +189,85 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeyValidated }) => {
 
     return (
         <>
-            {/* API Key Status Display */}
-            <div className="card p-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        {getStatusIcon()}
-                        <div>
-                            <h3 className="font-medium text-gray-900">OpenRouter API Key</h3>
-                            <p className={`text-sm ${getStatusColor()}`}>{getStatusText()}</p>
+            {/* API Keys Status Display */}
+            <div className="space-y-4">
+                {/* OpenRouter API Key */}
+                <div className="card p-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                            {getStatusIcon(isValidatingOpenRouter, openRouterValidationStatus)}
+                            <div>
+                                <h3 className="font-medium text-gray-900">OpenRouter API Key</h3>
+                                <p className={`text-sm ${getStatusColor(isValidatingOpenRouter, openRouterValidationStatus)}`}>
+                                    {getStatusText(isValidatingOpenRouter, openRouterValidationStatus)}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex space-x-2">
+                            {openRouterValidationStatus === 'valid' ? (
+                                <button
+                                    onClick={handleRemoveOpenRouterApiKey}
+                                    className="btn btn-outline btn-sm text-red-600 hover:text-red-700"
+                                >
+                                    Remove
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setShowOpenRouterPopup(true)}
+                                    className="btn btn-primary btn-sm"
+                                >
+                                    {openRouterValidationStatus === 'invalid' ? 'Update Key' : 'Add Key'}
+                                </button>
+                            )}
                         </div>
                     </div>
+                </div>
 
-                    <div className="flex space-x-2">
-                        {validationStatus === 'valid' ? (
-                            <button
-                                onClick={handleRemoveApiKey}
-                                className="btn btn-outline btn-sm text-red-600 hover:text-red-700"
-                            >
-                                Remove
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setShowPopup(true)}
-                                className="btn btn-primary btn-sm"
-                            >
-                                {validationStatus === 'invalid' ? 'Update Key' : 'Add Key'}
-                            </button>
-                        )}
+                {/* OpenAI API Key */}
+                <div className="card p-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                            {getStatusIcon(isValidatingOpenAI, openAIValidationStatus)}
+                            <div>
+                                <h3 className="font-medium text-gray-900">OpenAI API Key</h3>
+                                <p className={`text-sm ${getStatusColor(isValidatingOpenAI, openAIValidationStatus)}`}>
+                                    {getStatusText(isValidatingOpenAI, openAIValidationStatus)}
+                                </p>
+                                <p className="text-xs text-gray-500">Required for Voice Mode TTS</p>
+                            </div>
+                        </div>
+
+                        <div className="flex space-x-2">
+                            {openAIValidationStatus === 'valid' ? (
+                                <button
+                                    onClick={handleRemoveOpenAIApiKey}
+                                    className="btn btn-outline btn-sm text-red-600 hover:text-red-700"
+                                >
+                                    Remove
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setShowOpenAIPopup(true)}
+                                    className="btn btn-primary btn-sm"
+                                >
+                                    {openAIValidationStatus === 'invalid' ? 'Update Key' : 'Add Key'}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* API Key Setup Popup */}
+            {/* OpenRouter API Key Setup Popup */}
             <AnimatePresence>
-                {showPopup && (
+                {showOpenRouterPopup && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-                        onClick={() => setShowPopup(false)}
+                        onClick={() => setShowOpenRouterPopup(false)}
                     >
                         <motion.div
                             initial={{ scale: 0.95, opacity: 0 }}
@@ -174,7 +279,7 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeyValidated }) => {
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900">OpenRouter API Key</h2>
                                 <button
-                                    onClick={() => setShowPopup(false)}
+                                    onClick={() => setShowOpenRouterPopup(false)}
                                     className="text-gray-400 hover:text-gray-600"
                                 >
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,26 +295,26 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeyValidated }) => {
                                     </label>
                                     <div className="relative">
                                         <input
-                                            type={showKey ? 'text' : 'password'}
-                                            value={apiKey}
-                                            onChange={(e) => setApiKey(e.target.value)}
+                                            type={showOpenRouterKey ? 'text' : 'password'}
+                                            value={openRouterApiKey}
+                                            onChange={(e) => setOpenRouterApiKey(e.target.value)}
                                             placeholder="sk-or-v1-..."
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pr-10"
-                                            disabled={isValidating}
+                                            disabled={isValidatingOpenRouter}
                                         />
                                         <button
                                             type="button"
-                                            onClick={() => setShowKey(!showKey)}
+                                            onClick={() => setShowOpenRouterKey(!showOpenRouterKey)}
                                             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                                         >
-                                            {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                            {showOpenRouterKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                         </button>
                                     </div>
                                 </div>
 
-                                {errorMessage && (
+                                {openRouterErrorMessage && (
                                     <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
-                                        {errorMessage}
+                                        {openRouterErrorMessage}
                                     </div>
                                 )}
 
@@ -225,18 +330,119 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeyValidated }) => {
 
                                 <div className="flex space-x-3">
                                     <button
-                                        onClick={() => setShowPopup(false)}
+                                        onClick={() => setShowOpenRouterPopup(false)}
                                         className="btn btn-outline flex-1"
-                                        disabled={isValidating}
+                                        disabled={isValidatingOpenRouter}
                                     >
                                         Cancel
                                     </button>
                                     <button
-                                        onClick={handleSaveApiKey}
-                                        disabled={isValidating || !apiKey.trim()}
+                                        onClick={handleSaveOpenRouterApiKey}
+                                        disabled={isValidatingOpenRouter || !openRouterApiKey.trim()}
                                         className="btn btn-primary flex-1"
                                     >
-                                        {isValidating ? (
+                                        {isValidatingOpenRouter ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                Validating...
+                                            </>
+                                        ) : (
+                                            'Save & Validate'
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* OpenAI API Key Setup Popup */}
+            <AnimatePresence>
+                {showOpenAIPopup && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                        onClick={() => setShowOpenAIPopup(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-semibold text-gray-900">OpenAI API Key</h2>
+                                <button
+                                    onClick={() => setShowOpenAIPopup(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        API Key
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type={showOpenAIKey ? 'text' : 'password'}
+                                            value={openAIApiKey}
+                                            onChange={(e) => setOpenAIApiKey(e.target.value)}
+                                            placeholder="sk-..."
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 pr-10"
+                                            disabled={isValidatingOpenAI}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowOpenAIKey(!showOpenAIKey)}
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                        >
+                                            {showOpenAIKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {openAIErrorMessage && (
+                                    <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+                                        {openAIErrorMessage}
+                                    </div>
+                                )}
+
+                                <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                                    <p className="font-medium mb-1">How to get your API key:</p>
+                                    <ol className="list-decimal list-inside space-y-1">
+                                        <li>Visit <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">platform.openai.com/api-keys</a></li>
+                                        <li>Sign up or log in to your account</li>
+                                        <li>Create a new API key</li>
+                                        <li>Copy and paste it here</li>
+                                    </ol>
+                                    <p className="mt-2 text-xs text-gray-500">
+                                        This key is required for Voice Mode Text-to-Speech functionality.
+                                    </p>
+                                </div>
+
+                                <div className="flex space-x-3">
+                                    <button
+                                        onClick={() => setShowOpenAIPopup(false)}
+                                        className="btn btn-outline flex-1"
+                                        disabled={isValidatingOpenAI}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSaveOpenAIApiKey}
+                                        disabled={isValidatingOpenAI || !openAIApiKey.trim()}
+                                        className="btn btn-primary flex-1"
+                                    >
+                                        {isValidatingOpenAI ? (
                                             <>
                                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                                                 Validating...
