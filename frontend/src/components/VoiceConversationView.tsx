@@ -224,6 +224,18 @@ const VoiceConversationView: React.FC = () => {
                         >
                             {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                         </button>
+
+                        {ttsService.isPlaying() && (
+                            <button
+                                onClick={() => ttsService.skipCurrentAudio()}
+                                className="p-2 rounded-lg transition-colors bg-orange-500/20 text-orange-400 hover:bg-orange-500/30"
+                                title="Skip current audio"
+                            >
+                                <div className="w-5 h-5 flex items-center justify-center">
+                                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -340,6 +352,22 @@ const VoiceConversationView: React.FC = () => {
                         </motion.div>
                     )}
 
+                    {/* Audio Queue State */}
+                    {!currentSubtitle && !isGenerating && ttsService.getQueueLength() > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-center text-white/60 mt-4"
+                        >
+                            <div className="text-sm">Waiting for previous audio to finish...</div>
+                            <div className="flex justify-center space-x-1 mt-2">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                            </div>
+                        </motion.div>
+                    )}
+
                     {/* Generating State */}
                     {isGenerating && !currentSubtitle && (
                         <motion.div
@@ -370,6 +398,25 @@ const VoiceConversationView: React.FC = () => {
                             <div className="flex items-center space-x-1">
                                 <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
                                 <span>{responseQueue.length} response{responseQueue.length > 1 ? 's' : ''} queued</span>
+                            </div>
+                        )}
+                        {ttsService.getQueueLength() > 0 && (
+                            <div className="flex items-center space-x-1">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                                <span>{ttsService.getQueueLength()} audio{ttsService.getQueueLength() > 1 ? 's' : ''} queued</span>
+                            </div>
+                        )}
+                        {ttsService.isPlaying() && (
+                            <div className="flex items-center space-x-1">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+                                <span>Playing audio</span>
+                                {(() => {
+                                    const audioInfo = ttsService.getCurrentAudioInfo();
+                                    if (audioInfo && audioInfo.remainingTime > 0) {
+                                        return ` (${Math.ceil(audioInfo.remainingTime)}s left)`;
+                                    }
+                                    return '';
+                                })()}
                             </div>
                         )}
                     </div>

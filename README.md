@@ -20,6 +20,8 @@
 - 🔗 **OpenRouter Integration**: Powered by OpenRouter.ai for reliable AI model access
 - 💬 **Real-time Conversations**: Watch AI models discuss topics in real-time
 - 🎨 **Beautiful UI**: Modern, responsive interface built with React and Tailwind CSS
+- 🎤 **Voice Mode**: Listen to AI conversations with natural speech synthesis
+- 🔄 **Smart Audio Queue**: Prevents speech interruption with intelligent completion detection
 - 🚀 **Easy Deployment**: Docker support for simple self-hosting
 - 📱 **Mobile Friendly**: Works great on desktop and mobile devices
 
@@ -113,6 +115,28 @@ RATE_LIMIT_MAX_REQUESTS=100
 - **Follow-up Questions**: Add new prompts to continue the discussion
 - **Model Configuration**: Click the settings icon to customize individual models
 - **Clear Conversation**: Start fresh with a new topic
+
+### Voice Mode
+
+Manazra includes a powerful voice mode that allows you to listen to AI conversations with natural speech synthesis:
+
+- **🎤 Natural Speech**: Each AI model gets a unique voice using OpenAI's TTS
+- **🔄 Smart Queue System**: Prevents speech interruption by waiting for previous audio to complete
+- **📊 Real-time Status**: See which model is speaking and how many responses are queued
+- **⏱️ Completion Detection**: Automatically detects when speech finishes before starting the next response
+
+#### Voice Mode Features
+
+- **Unique Voices**: Each model is assigned a distinct voice (nova, alloy, echo, fable, onyx, shimmer)
+- **Audio Queue Management**: Responses are queued and played sequentially without interruption
+- **Visual Feedback**: Real-time indicators show which model is speaking and queue status
+- **Timeout Protection**: 30-second timeout prevents infinite waiting if audio fails to complete
+
+#### Setting Up Voice Mode
+
+1. **Configure OpenAI API Key**: Add your OpenAI API key in the settings for TTS functionality
+2. **Enable Voice Mode**: Switch to voice mode after starting a conversation
+3. **Listen to Conversations**: Watch and listen as models speak naturally without interruption
 
 ### Available Tones
 

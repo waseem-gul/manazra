@@ -8,6 +8,13 @@ interface TTSResponse {
 class TTSService {
     private openai: OpenAI | null = null;
     private currentAudio: HTMLAudioElement | null = null;
+    private audioQueue: Array<{
+        responseText: string;
+        voice: string;
+        onStart?: () => void;
+        onEnd?: () => void;
+    }> = [];
+    private isProcessingQueue = false;
 
     private initializeOpenAI() {
         const apiKey = localStorage.getItem('openai_api_key');
@@ -24,6 +31,87 @@ class TTSService {
     }
 
     async playTTSResponse(responseText: string, voice: string = 'nova', onStart?: () => void, onEnd?: () => void): Promise<void> {
+        // Add to queue instead of playing immediately
+        this.audioQueue.push({
+            responseText,
+            voice,
+            onStart,
+            onEnd
+        });
+
+        // Process queue if not already processing
+        if (!this.isProcessingQueue) {
+            this.processQueue();
+        }
+    }
+
+    private async processQueue(): Promise<void> {
+        if (this.isProcessingQueue || this.audioQueue.length === 0) {
+            return;
+        }
+
+        this.isProcessingQueue = true;
+        console.log('🎤 TTS: Starting queue processing, items in queue:', this.audioQueue.length);
+
+        while (this.audioQueue.length > 0) {
+            const item = this.audioQueue[0];
+            console.log('🎤 TTS: Processing queue item for voice:', item.voice);
+            
+            // Wait for current audio to finish if it's playing
+            if (this.isPlaying()) {
+                console.log('🎤 TTS: Waiting for current audio to finish...');
+                await this.waitForAudioToFinish();
+                console.log('🎤 TTS: Current audio finished, proceeding with next item');
+            }
+
+            // Remove the item from queue before processing
+            this.audioQueue.shift();
+
+            try {
+                await this.playSingleTTSResponse(item.responseText, item.voice, item.onStart, item.onEnd);
+            } catch (error) {
+                console.error('🎤 TTS: Error playing audio from queue:', error);
+                if (item.onEnd) item.onEnd();
+                // Continue with next item even if this one fails
+            }
+        }
+
+        console.log('🎤 TTS: Queue processing completed');
+        this.isProcessingQueue = false;
+    }
+
+    private async waitForAudioToFinish(): Promise<void> {
+        return new Promise((resolve) => {
+            if (!this.currentAudio) {
+                console.log('🎤 TTS: No current audio, proceeding immediately');
+                resolve();
+                return;
+            }
+
+            console.log('🎤 TTS: Starting to wait for audio to finish...');
+            
+            // Add a timeout to prevent infinite waiting
+            const timeout = setTimeout(() => {
+                console.warn('🎤 TTS: Audio finish wait timeout, proceeding anyway');
+                resolve();
+            }, 30000); // 30 second timeout
+
+            const checkEnded = () => {
+                if (this.currentAudio && this.currentAudio.ended) {
+                    console.log('🎤 TTS: Audio finished naturally');
+                    clearTimeout(timeout);
+                    resolve();
+                } else {
+                    // Check again in 100ms
+                    setTimeout(checkEnded, 100);
+                }
+            };
+
+            checkEnded();
+        });
+    }
+
+    private async playSingleTTSResponse(responseText: string, voice: string = 'nova', onStart?: () => void, onEnd?: () => void): Promise<void> {
         try {
             console.log('🎤 TTS: Starting playback for voice:', voice);
             
@@ -52,15 +140,13 @@ class TTSService {
             const audioUrl = URL.createObjectURL(audioBlob);
             console.log('🎤 TTS: Audio blob created, URL:', audioUrl);
 
-            // Stop any currently playing audio
-            this.stopCurrentAudio();
-
             // Create and play new audio
             this.currentAudio = new Audio(audioUrl);
             
             // Set audio properties for better compatibility
             this.currentAudio.preload = 'auto';
             this.currentAudio.volume = 1;
+            
             // Add more detailed event listeners
             this.currentAudio.addEventListener('loadstart', () => {
                 console.log('🎤 TTS: Audio load started');
@@ -173,14 +259,45 @@ class TTSService {
 
     stopCurrentAudio(): void {
         if (this.currentAudio) {
+            console.log('🎤 TTS: Stopping current audio');
             this.currentAudio.pause();
             this.currentAudio.currentTime = 0;
             this.currentAudio = null;
         }
+        // Clear the queue when stopping
+        this.audioQueue = [];
+        this.isProcessingQueue = false;
+    }
+
+    skipCurrentAudio(): void {
+        if (this.currentAudio) {
+            console.log('🎤 TTS: Skipping current audio');
+            this.currentAudio.pause();
+            this.currentAudio.currentTime = 0;
+            this.currentAudio = null;
+        }
+        // Don't clear the queue, just continue with next item
     }
 
     isPlaying(): boolean {
-        return this.currentAudio !== null && !this.currentAudio.paused;
+        return this.currentAudio !== null && !this.currentAudio.paused && !this.currentAudio.ended;
+    }
+
+    getQueueLength(): number {
+        return this.audioQueue.length;
+    }
+
+    getCurrentAudioInfo(): { isPlaying: boolean; duration: number; currentTime: number; remainingTime: number } | null {
+        if (!this.currentAudio) {
+            return null;
+        }
+
+        return {
+            isPlaying: !this.currentAudio.paused && !this.currentAudio.ended,
+            duration: this.currentAudio.duration || 0,
+            currentTime: this.currentAudio.currentTime || 0,
+            remainingTime: (this.currentAudio.duration || 0) - (this.currentAudio.currentTime || 0)
+        };
     }
 
     async validateApiKey(apiKey: string): Promise<boolean> {
