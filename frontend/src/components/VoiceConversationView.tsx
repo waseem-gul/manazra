@@ -3,6 +3,7 @@ import { useConversation } from '../contexts/ConversationContext';
 import { ArrowLeft, Volume2, VolumeX, Mic, MicOff, Users, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ttsService from '../services/tts';
+import { ModelLogo } from '../utils/modelLogos';
 
 // Color palette for models - distinct colors that work well together
 const MODEL_COLORS = [
@@ -254,8 +255,9 @@ const VoiceConversationView: React.FC = () => {
                     <div className="flex items-center justify-center space-x-8">
                         {currentConversation.models.map((model, index) => {
                             const colors = modelColors[model.id];
-                            const isActive = currentlyPlayingAudio === model.id;
-                            const isStreaming = streamingResponses[model.id] && streamingResponses[model.id].length > 0;
+                            const isConversationComplete = !currentSubtitle && !isGenerating && responseQueue.length === 0 && ttsService.getQueueLength() === 0 && !ttsService.isPlaying() && currentConversation.responses.length > 0;
+                            const isActive = !isConversationComplete && currentlyPlayingAudio === model.id;
+                            const isStreaming = !isConversationComplete && streamingResponses[model.id] && streamingResponses[model.id].length > 0;
 
                             return (
                                 <motion.div
@@ -291,9 +293,11 @@ const VoiceConversationView: React.FC = () => {
                                             : `${colors.bg} ${colors.text}`
                                             }`}
                                     >
-                                        <div className="text-sm font-bold text-center">
-                                            {formatModelName(model.name).substring(0, 3).toUpperCase()}
-                                        </div>
+                                        <ModelLogo
+                                            modelName={model.name}
+                                            size="xl"
+                                            className={isActive ? "text-white" : ""}
+                                        />
                                     </div>
 
                                     {/* Model Name */}
@@ -341,7 +345,7 @@ const VoiceConversationView: React.FC = () => {
                     </AnimatePresence>
 
                     {/* Waiting State */}
-                    {!currentSubtitle && !isGenerating && (
+                    {!currentSubtitle && !isGenerating && responseQueue.length === 0 && ttsService.getQueueLength() === 0 && !ttsService.isPlaying() && currentConversation.responses.length === 0 && (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -349,6 +353,18 @@ const VoiceConversationView: React.FC = () => {
                         >
                             <div className="text-lg mb-2">Ready to listen...</div>
                             <div className="text-sm">Models will start speaking soon</div>
+                        </motion.div>
+                    )}
+
+                    {/* Conversation Complete State */}
+                    {!currentSubtitle && !isGenerating && responseQueue.length === 0 && ttsService.getQueueLength() === 0 && !ttsService.isPlaying() && currentConversation.responses.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-center text-white/60"
+                        >
+                            <div className="text-lg mb-2">Conversation Complete</div>
+                            <div className="text-sm">All models have finished speaking</div>
                         </motion.div>
                     )}
 

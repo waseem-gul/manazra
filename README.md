@@ -11,6 +11,8 @@
 
 ![Demo](assets/demo.gif)
 
+[Live Demo](https://manazra.com)
+
 *Watch Manazra in action - See how easy it is to create engaging AI conversations!*
 
 ## ✨ Features
@@ -355,5 +357,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Made with ❤️ by Waseem Gul**
-
-[Live Demo](https://manazra.com) • [Documentation](https://docs.manazra.com) • [GitHub](https://github.com/waseem-gul/manazra) 

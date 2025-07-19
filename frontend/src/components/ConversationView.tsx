@@ -3,6 +3,7 @@ import { useConversation } from '../contexts/ConversationContext';
 import { MessageSquare, Clock, User, Bot, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
+import { ModelLogo } from '../utils/modelLogos';
 
 // Color palette for models - distinct colors that work well together
 const MODEL_COLORS = [
@@ -147,7 +148,11 @@ const ConversationView: React.FC = () => {
                                     className="flex items-start space-x-3"
                                 >
                                     <div className={`${response.error ? 'bg-red-100' : colors.bg} p-2 rounded-lg`}>
-                                        <Bot className={`w-5 h-5 ${response.error ? 'text-red-600' : colors.text}`} />
+                                        <ModelLogo
+                                            modelName={response.model.name}
+                                            size="md"
+                                            className={response.error ? 'text-red-600' : colors.text}
+                                        />
                                     </div>
                                     <div className="flex-1">
                                         <div className={`${response.error ? 'bg-red-50' : colors.bgLight} rounded-lg p-4`}>
@@ -189,7 +194,11 @@ const ConversationView: React.FC = () => {
                                     className="flex items-start space-x-3"
                                 >
                                     <div className="bg-blue-100 p-2 rounded-lg">
-                                        <Bot className="w-5 h-5 text-blue-600" />
+                                        <ModelLogo
+                                            modelName={model.name}
+                                            size="md"
+                                            className="text-blue-600"
+                                        />
                                     </div>
                                     <div className="flex-1">
                                         <div className="bg-blue-50 rounded-lg p-4">
