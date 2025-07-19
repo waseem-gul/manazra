@@ -5,16 +5,36 @@ interface TTSResponse {
     instructions: string;
 }
 
+interface QueueItem {
+    id: string;
+    responseText: string;
+    voice: string;
+    onStart?: () => void;
+    onEnd?: () => void;
+}
+
+interface PreparedAudio {
+    id: string;
+    audio: HTMLAudioElement;
+    audioUrl: string;
+    onStart?: () => void;
+    onEnd?: () => void;
+}
+
 class TTSService {
     private openai: OpenAI | null = null;
     private currentAudio: HTMLAudioElement | null = null;
-    private audioQueue: Array<{
-        responseText: string;
-        voice: string;
-        onStart?: () => void;
-        onEnd?: () => void;
-    }> = [];
-    private isProcessingQueue = false;
+    private currentAudioId: string | null = null;
+    
+    // Queue for text that needs to be converted to audio
+    private textQueue: QueueItem[] = [];
+    
+    // Queue for audio that's ready to play
+    private audioQueue: PreparedAudio[] = [];
+    
+    private isProcessingText = false;
+    private isProcessingPlayback = false;
+    private idCounter = 0;
 
     private initializeOpenAI() {
         const apiKey = localStorage.getItem('openai_api_key');
@@ -31,174 +51,189 @@ class TTSService {
     }
 
     async playTTSResponse(responseText: string, voice: string = 'nova', onStart?: () => void, onEnd?: () => void): Promise<void> {
-        // Add to queue instead of playing immediately
-        this.audioQueue.push({
+        const id = `tts_${++this.idCounter}`;
+        
+        // Add to text queue for processing
+        this.textQueue.push({
+            id,
             responseText,
             voice,
             onStart,
             onEnd
         });
 
-        // Process queue if not already processing
-        if (!this.isProcessingQueue) {
-            this.processQueue();
-        }
+        console.log(`🎤 TTS: Added item ${id} to text queue, total items:`, this.textQueue.length);
+
+        // Start processing if not already processing
+        this.processTextQueue();
+        this.processAudioQueue();
     }
 
-    private async processQueue(): Promise<void> {
-        if (this.isProcessingQueue || this.audioQueue.length === 0) {
+    private async processTextQueue(): Promise<void> {
+        if (this.isProcessingText || this.textQueue.length === 0) {
             return;
         }
 
-        this.isProcessingQueue = true;
-        console.log('🎤 TTS: Starting queue processing, items in queue:', this.audioQueue.length);
+        this.isProcessingText = true;
+        console.log('🎤 TTS: Starting text processing, items in queue:', this.textQueue.length);
 
-        while (this.audioQueue.length > 0) {
-            const item = this.audioQueue[0];
-            console.log('🎤 TTS: Processing queue item for voice:', item.voice);
+        while (this.textQueue.length > 0) {
+            const item = this.textQueue.shift()!;
+            console.log(`🎤 TTS: Processing text for item ${item.id} with voice:`, item.voice);
             
-            // Wait for current audio to finish if it's playing
-            if (this.isPlaying()) {
-                console.log('🎤 TTS: Waiting for current audio to finish...');
-                await this.waitForAudioToFinish();
-                console.log('🎤 TTS: Current audio finished, proceeding with next item');
-            }
-
-            // Remove the item from queue before processing
-            this.audioQueue.shift();
-
             try {
-                await this.playSingleTTSResponse(item.responseText, item.voice, item.onStart, item.onEnd);
+                await this.convertTextToAudio(item);
             } catch (error) {
-                console.error('🎤 TTS: Error playing audio from queue:', error);
+                console.error(`🎤 TTS: Error converting text to audio for item ${item.id}:`, error);
+                // If conversion fails, we still need to call onEnd to prevent hanging
                 if (item.onEnd) item.onEnd();
-                // Continue with next item even if this one fails
             }
         }
 
-        console.log('🎤 TTS: Queue processing completed');
-        this.isProcessingQueue = false;
+        console.log('🎤 TTS: Text processing completed');
+        this.isProcessingText = false;
     }
 
-    private async waitForAudioToFinish(): Promise<void> {
-        return new Promise((resolve) => {
-            if (!this.currentAudio) {
-                console.log('🎤 TTS: No current audio, proceeding immediately');
-                resolve();
-                return;
-            }
-
-            console.log('🎤 TTS: Starting to wait for audio to finish...');
-            
-            // Add a timeout to prevent infinite waiting
-            const timeout = setTimeout(() => {
-                console.warn('🎤 TTS: Audio finish wait timeout, proceeding anyway');
-                resolve();
-            }, 30000); // 30 second timeout
-
-            const checkEnded = () => {
-                if (this.currentAudio && this.currentAudio.ended) {
-                    console.log('🎤 TTS: Audio finished naturally');
-                    clearTimeout(timeout);
-                    resolve();
-                } else {
-                    // Check again in 100ms
-                    setTimeout(checkEnded, 100);
-                }
-            };
-
-            checkEnded();
-        });
-    }
-
-    private async playSingleTTSResponse(responseText: string, voice: string = 'nova', onStart?: () => void, onEnd?: () => void): Promise<void> {
+    private async convertTextToAudio(item: QueueItem): Promise<void> {
         try {
-            console.log('🎤 TTS: Starting playback for voice:', voice);
+            console.log(`🎤 TTS: Converting text to audio for item ${item.id}`);
             
             // Parse the LLM response to extract input and instructions
-            const ttsData = this.parseVoiceResponse(responseText);
-            console.log('🎤 TTS: Parsed data:', ttsData);
+            const ttsData = this.parseVoiceResponse(item.responseText);
+            console.log(`🎤 TTS: Parsed data for item ${item.id}:`, ttsData);
             
             this.initializeOpenAI();
-            
-            if (onStart) onStart();
 
-            console.log('🎤 TTS: Creating OpenAI speech request...');
+            console.log(`🎤 TTS: Creating OpenAI speech request for item ${item.id}...`);
             // Create TTS audio using OpenAI
             const response = await this.openai!.audio.speech.create({
                 model: 'tts-1',
-                voice: voice as any, // Use the provided voice parameter
+                voice: item.voice as any,
                 input: ttsData.input,
                 response_format: 'mp3',
                 speed: 1.0
             });
 
-            console.log('🎤 TTS: OpenAI response received, converting to audio...');
-            // Convert response to audio and play
+            console.log(`🎤 TTS: OpenAI response received for item ${item.id}, converting to audio...`);
+            // Convert response to audio
             const audioBuffer = await response.arrayBuffer();
             const audioBlob = new Blob([audioBuffer], { type: 'audio/mpeg' });
             const audioUrl = URL.createObjectURL(audioBlob);
-            console.log('🎤 TTS: Audio blob created, URL:', audioUrl);
+            console.log(`🎤 TTS: Audio blob created for item ${item.id}, URL:`, audioUrl);
 
-            // Create and play new audio
-            this.currentAudio = new Audio(audioUrl);
+            // Create audio element
+            const audio = new Audio(audioUrl);
+            audio.preload = 'auto';
+            audio.volume = 1;
             
-            // Set audio properties for better compatibility
-            this.currentAudio.preload = 'auto';
-            this.currentAudio.volume = 1;
-            
-            // Add more detailed event listeners
-            this.currentAudio.addEventListener('loadstart', () => {
-                console.log('🎤 TTS: Audio load started');
-            });
-            this.currentAudio.addEventListener('canplay', () => {
-                console.log('🎤 TTS: Audio can play');
-            });
-            this.currentAudio.addEventListener('play', () => {
-                console.log('🎤 TTS: Audio playback started');
-            });
-            this.currentAudio.addEventListener('ended', () => {
-                console.log('🎤 TTS: Audio playback ended');
-                URL.revokeObjectURL(audioUrl);
-                this.currentAudio = null;
-                if (onEnd) onEnd();
-            });
-            this.currentAudio.addEventListener('error', (error) => {
-                console.error('🎤 TTS: Audio playback error:', error);
-                console.error('🎤 TTS: Audio error details:', this.currentAudio?.error);
-                URL.revokeObjectURL(audioUrl);
-                this.currentAudio = null;
-                if (onEnd) onEnd();
+            // Wait for audio to be ready
+            await new Promise<void>((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Audio load timeout'));
+                }, 10000);
+
+                audio.addEventListener('canplay', () => {
+                    clearTimeout(timeout);
+                    console.log(`🎤 TTS: Audio ready for item ${item.id}`);
+                    resolve();
+                }, { once: true });
+
+                audio.addEventListener('error', (error) => {
+                    clearTimeout(timeout);
+                    console.error(`🎤 TTS: Audio load error for item ${item.id}:`, error);
+                    reject(error);
+                }, { once: true });
             });
 
-            console.log('🎤 TTS: Attempting to play audio...');
+            // Add to audio queue
+            this.audioQueue.push({
+                id: item.id,
+                audio,
+                audioUrl,
+                onStart: item.onStart,
+                onEnd: item.onEnd
+            });
+
+            console.log(`🎤 TTS: Item ${item.id} added to audio queue, total ready:`, this.audioQueue.length);
             
-            // Simple play attempt - if it fails, well show a message
-            try {
-                await this.currentAudio.play();
-                console.log('🎤 TTS: Audio play() called successfully');
-            } catch (playError: any) {
-                console.error('🎤 TTS: Play failed:', playError);
-                
-                // Show a user-friendly message about autoplay
-                if (playError.name === 'NotAllowedError') {
-                    console.log('🎤 TTS: Autoplay blocked by browser - this is normal for subsequent audio');
-                    
-                    // Create a user-friendly notification
-                    this.showAutoplayNotification(ttsData.input);
-                    
-                    // Dont throw the error, just log it and continue
-                    // The audio will be available for manual play if needed
-                    if (onEnd) onEnd();
-                } else {
-                    throw playError;
-                }
-            }
+            // Start playing if nothing is currently playing
+            this.processAudioQueue();
 
         } catch (error) {
-            console.error('🎤 TTS Error:', error);
-            if (onEnd) onEnd();
+            console.error(`🎤 TTS: Error in convertTextToAudio for item ${item.id}:`, error);
             throw error;
+        }
+    }
+
+    private async processAudioQueue(): Promise<void> {
+        if (this.isProcessingPlayback || this.audioQueue.length === 0) {
+            return;
+        }
+
+        // If something is currently playing, wait for it to finish
+        if (this.isPlaying()) {
+            console.log('🎤 TTS: Audio currently playing, waiting for completion...');
+            return;
+        }
+
+        this.isProcessingPlayback = true;
+        console.log('🎤 TTS: Starting audio playback, items in queue:', this.audioQueue.length);
+
+        const item = this.audioQueue.shift()!;
+        console.log(`🎤 TTS: Playing audio for item ${item.id}`);
+        
+        this.currentAudio = item.audio;
+        this.currentAudioId = item.id;
+
+        // Set up event listeners
+        this.currentAudio.addEventListener('play', () => {
+            console.log(`🎤 TTS: Audio playback started for item ${item.id}`);
+            if (item.onStart) item.onStart();
+        });
+
+        this.currentAudio.addEventListener('ended', () => {
+            console.log(`🎤 TTS: Audio playback ended for item ${item.id}`);
+            URL.revokeObjectURL(item.audioUrl);
+            this.currentAudio = null;
+            this.currentAudioId = null;
+            if (item.onEnd) item.onEnd();
+            
+            this.isProcessingPlayback = false;
+            // Process next item in queue
+            this.processAudioQueue();
+        });
+
+        this.currentAudio.addEventListener('error', (error) => {
+            console.error(`🎤 TTS: Audio playback error for item ${item.id}:`, error);
+            URL.revokeObjectURL(item.audioUrl);
+            this.currentAudio = null;
+            this.currentAudioId = null;
+            if (item.onEnd) item.onEnd();
+            
+            this.isProcessingPlayback = false;
+            // Process next item in queue
+            this.processAudioQueue();
+        });
+
+        try {
+            await this.currentAudio.play();
+            console.log(`🎤 TTS: Audio play() called successfully for item ${item.id}`);
+        } catch (playError: any) {
+            console.error(`🎤 TTS: Play failed for item ${item.id}:`, playError);
+            
+            if (playError.name === 'NotAllowedError') {
+                console.log('🎤 TTS: Autoplay blocked by browser');
+                this.showAutoplayNotification("Audio playback blocked");
+            }
+            
+            // Clean up and continue
+            URL.revokeObjectURL(item.audioUrl);
+            this.currentAudio = null;
+            this.currentAudioId = null;
+            if (item.onEnd) item.onEnd();
+            
+            this.isProcessingPlayback = false;
+            this.processAudioQueue();
         }
     }
 
@@ -263,10 +298,20 @@ class TTSService {
             this.currentAudio.pause();
             this.currentAudio.currentTime = 0;
             this.currentAudio = null;
+            this.currentAudioId = null;
         }
-        // Clear the queue when stopping
+        
+        // Clear all queues when stopping
+        this.textQueue = [];
+        
+        // Clean up prepared audio
+        this.audioQueue.forEach(item => {
+            URL.revokeObjectURL(item.audioUrl);
+        });
         this.audioQueue = [];
-        this.isProcessingQueue = false;
+        
+        this.isProcessingText = false;
+        this.isProcessingPlayback = false;
     }
 
     skipCurrentAudio(): void {
@@ -274,9 +319,10 @@ class TTSService {
             console.log('🎤 TTS: Skipping current audio');
             this.currentAudio.pause();
             this.currentAudio.currentTime = 0;
-            this.currentAudio = null;
+            
+            // Trigger the ended event to move to next audio
+            this.currentAudio.dispatchEvent(new Event('ended'));
         }
-        // Don't clear the queue, just continue with next item
     }
 
     isPlaying(): boolean {
@@ -284,7 +330,7 @@ class TTSService {
     }
 
     getQueueLength(): number {
-        return this.audioQueue.length;
+        return this.textQueue.length + this.audioQueue.length;
     }
 
     getCurrentAudioInfo(): { isPlaying: boolean; duration: number; currentTime: number; remainingTime: number } | null {
