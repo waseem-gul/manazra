@@ -103,10 +103,8 @@ const VoiceConversationView: React.FC = () => {
             try {
                 const jsonResponse = JSON.parse(response.response);
 
-                // Display only the input text in subtitles
+                // Check if we have input text to display
                 if (jsonResponse.input) {
-                    setCurrentSubtitle(jsonResponse.input);
-
                     // Check if OpenAI API key is available
                     const openaiApiKey = localStorage.getItem('openai_api_key');
                     if (!openaiApiKey) {
@@ -123,7 +121,8 @@ const VoiceConversationView: React.FC = () => {
                             response.response,
                             voice,
                             () => {
-                                // Audio started playing
+                                // Audio started playing - NOW show the subtitle
+                                setCurrentSubtitle(jsonResponse.input);
                                 setCurrentlyPlayingAudio(response.model.id);
                             },
                             () => {
@@ -138,6 +137,7 @@ const VoiceConversationView: React.FC = () => {
             } catch (error) {
                 console.error('Failed to parse JSON response or play TTS:', error);
                 // Fallback to raw response if JSON parsing fails
+                // For error cases, show subtitle immediately since there's no audio
                 setCurrentSubtitle(response.response);
                 // Wait a bit for user to read the text
                 await new Promise(resolve => setTimeout(resolve, 3000));
